@@ -13,10 +13,10 @@ knitr::opts_chunk$set(fig.align = "center",
 if (!require("pacman")) 
   install.packages("pacman", repos='http://cran.us.r-project.org')
 p_load("tidyverse", "R2jags", "knitr", "kableExtra", "lattice")
-setwd("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Final DAP/")
+setwd("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Bayes_FinalDAP")
 theme_set(theme_bw())
 
-load("C:/Users/anthe/Google Drive/MS Biostats/CTourses/06 2019 Winter/BS 234/Labs/AddBurnin.RData")
+load("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Labs/AddBurnin.RData")
 load("ETAC/acasi.RData")
 ```
 
