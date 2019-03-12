@@ -105,6 +105,22 @@ demo <- acasi3 %>%
          `Unemployed` = EMPLOYE_RC)
 
 table1 <- bind_rows(
+  demo %>%
+      summarize(Variable = "Number of participants",
+                Frequency = as.character(n())),
+  bind_rows(
+    demo %>%
+      summarize(Variable = "Age",
+                Mean = mean(SCREEN1),
+                SD = sd(SCREEN1)),
+    demo %>%
+      summarize(Variable = "Time since HIV diagnosis",
+                Mean = mean(SINCEHIV),
+                SD = sd(SINCEHIV))
+  ) %>%
+    mutate_if(is.numeric, funs(round), 1) %>%
+    unite("Frequency", Mean, SD, sep = " (") %>%
+    mutate(Frequency = paste0(Frequency, ")")),
   tab1_OneFactor(demo, varString = "SEXBRTH", varRelevel = "Male"),
   tab1_OneFactor(demo, varString = "GENDER_RC", 
                  varRelevel = c("Man", "Woman", "Transgender")),
