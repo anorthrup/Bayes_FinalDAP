@@ -1,0 +1,28 @@
+---
+title: "Influence of Time Since HIV Diagnosis on Seeking Sexual Information Online"
+author: "Adam Northrup"
+date: "March 19, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = "center",
+                      echo = FALSE, include = FALSE, 
+                      warning = FALSE, message = FALSE)
+# install and load required packages
+if (!require("pacman")) 
+  install.packages("pacman", repos='http://cran.us.r-project.org')
+p_load("tidyverse", "R2jags", "knitr", "kableExtra", "lattice")
+setwd("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Final DAP/")
+theme_set(theme_bw())
+
+load("C:/Users/anthe/Google Drive/MS Biostats/CTourses/06 2019 Winter/BS 234/Labs/AddBurnin.RData")
+load("ETAC/acasi.RData")
+```
+
+## Abstract  
+This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. Whether an individual seeks health information online is thought to be predicted by age, race, gender, sexual orientation, education, employment, and time since diagnosis. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect will be measured using logistic regression, and will take the form of an odds ratio, $e^{\beta}$. $\beta$ is a vector of regression coefficients. Each covariate will be controlled for in determining the effect of the covariate of interest, time since HIV diagnosis. Regression coefficients are expected to follow a normal distribution with mean zero and high variance. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
+
+```{r}
+
+```
