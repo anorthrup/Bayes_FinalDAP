@@ -33,21 +33,36 @@ acasi3 <- acasi2 %>%
          HealthInfo = if_else(S56_24XL + S56_24XM + S56_24XN + S56_24XO > 0 &
                                 S56_24XL + S56_24XM + S56_24XN + S56_24XO < 8,
                               1, 0)) %>%
-  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, SEXBRTH, GENDER_RC, 
-         ORIENT_RC, GRADE_RC, 
+  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, SEXBRTH, GENDER, 
+         ORIENT, GRADE_RC, 
          contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
   mutate(SINCEHIV = 2019 - DIAGHIV) %>%
-  mutate_at(vars(RACE_RC, SEXBRTH, GENDER_RC, ORIENT_RC, GRADE_RC),
+  mutate_at(vars(RACE_RC, GENDER, ORIENT, GRADE_RC),
             funs(as.factor)) %>%
-  mutate(SEXBRTH = fct_recode(SEXBRTH,
-                              "Male" = "1",
-                              "Female" = "2"),
-         GENDER_RC = fct_recode(GENDER_RC,
-                                "Man" = "Male (cis man)",
-                                "Woman" = "Female (cis woman)",
-                                "Transgender" = "Trans person"))
+  mutate(ORIENT_RC = fct_recode(as.factor(ORIENT),
+                                "Straight"          = "1", 
+                                "Lesbian or gay"    = "2", 
+                                "Other orientation" = "3",
+                                "Other orientation" = "4", 
+                                "Other orientation" = "5", 
+                                "Other orientation" = "7"),
+         GENDER_RC = fct_recode(GENDER,
+                                "Cis man"          = "1", 
+                                "Cis woman"        = "2",
+                                "Trans man"        = "3", 
+                                "Trans woman"      = "4",
+                                "Other gender"     = "5", 
+                                "Other gender"     = "6")) %>%
+  unite("ORIENT_GENDER", ORIENT_RC, GENDER_RC, sep = " ", remove = FALSE) %>%
+  mutate(ORIENT_GENDER = fct_lump(as.factor(ORIENT_GENDER),
+                                  n = 5,
+                                  other_level = "Other Orientation/Gender"),
+         ORIENT_GENDER = fct_recode(ORIENT_GENDER,
+                                    "Gay cis man" = "Lesbian or gay Cis man",
+                                    "Lesbian trans woman" = "Lesbian or gay Trans woman"))
+table(acasi3$ORIENT_GENDER)
 y <- acasi3$HealthInfo
-x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + GENDER_RC + ORIENT_RC +
+x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + ORIENT_GENDER +
                     GRADE_RC + 
                     EMPLOYA + EMPLOYB + EMPLOYC + EMPLOYD + EMPLOYE_RC, 
                   data = acasi3)
