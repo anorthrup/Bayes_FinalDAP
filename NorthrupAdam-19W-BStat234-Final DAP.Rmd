@@ -34,5 +34,18 @@ acasi3 <- acasi2 %>%
                               1, 0)) %>%
   select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, GENDER_RC, 
          ORIENT_RC, GRADE_RC, 
-         contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo)
+         contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
+  mutate(SINCEHIV = 2019 - DIAGHIV) %>%
+  mutate_at(vars(RACE_RC, GENDER_RC, ORIENT_RC, GRADE_RC),
+            funs(as.factor)) %>%
+  mutate(GENDER_RC = fct_recode(GENDER_RC,
+                                "Man" = "Male (cis man)",
+                                "Woman" = "Female (cis woman)"))
+y <- acasi3$HealthInfo
+x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + GENDER_RC + ORIENT_RC +
+                    GRADE_RC + 
+                    EMPLOYA + EMPLOYB + EMPLOYC + EMPLOYD + EMPLOYE_RC, 
+                  data = acasi3)
+
 ```
+
