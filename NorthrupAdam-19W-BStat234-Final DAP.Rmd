@@ -26,6 +26,7 @@ This analysis will determine whether time since HIV diagnosis plays a role in wh
 ```{r data}
 acasi3 <- acasi2 %>%
   filter(!is.na(SCREEN1)) %>%
+  filter(BORNHIV == 0) %>%
   arrange(SITE1) %>%
   mutate(Site = as.numeric(as.factor(SITE1)),
          ID = 1:n(),
