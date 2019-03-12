@@ -43,7 +43,8 @@ acasi3 <- acasi2 %>%
                               "Female" = "2"),
          GENDER_RC = fct_recode(GENDER_RC,
                                 "Man" = "Male (cis man)",
-                                "Woman" = "Female (cis woman)"))
+                                "Woman" = "Female (cis woman)",
+                                "Transgender" = "Trans person"))
 y <- acasi3$HealthInfo
 x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + GENDER_RC + ORIENT_RC +
                     GRADE_RC + 
@@ -95,10 +96,30 @@ tab1_ManyBinary <- function (x, ..., response = 1) {
     mutate(Variable = as.character(Variable))
 }
 
-tab1_OneFactor(acasi3, varString = "RACE_RC", 
+#Create summary table
+demo <- acasi3 %>%
+  rename(`Student` = EMPLOYA,
+         `Full-time employed` = EMPLOYB,
+         `Part-time employed` = EMPLOYC,
+         `Disabled` = EMPLOYD,
+         `Unemployed` = EMPLOYE_RC)
+
+table1 <- bind_rows(
+  tab1_OneFactor(demo, varString = "SEXBRTH", varRelevel = "Male"),
+  tab1_OneFactor(demo, varString = "GENDER_RC", 
+                 varRelevel = c("Man", "Woman", "Transgender")),
+  tab1_OneFactor(demo, varString = "ORIENT_RC",
+                 varRelevel = c("Straight", "Lesbian or gay",
+                                "Bisexual")),
+  tab1_OneFactor(demo, varString = "RACE_RC", 
                varRelevel = c("Latino", "Black, Not Latino",
                               "White, Not Latino", 
-                              "White Mixed-Race, Not Latino or Black"))
-tab1_ManyBinary(acasi3, EMPLOYA, EMPLOYB, EMPLOYC, EMPLOYD, EMPLOYE_RC)
+                              "White Mixed-Race, Not Latino or Black")),
+  tab1_OneFactor(demo, varString = "GRADE_RC",
+                 varRelevel = c("High school, equivalent or less",
+                                "Some post-K12")),
+  tab1_ManyBinary(demo, Student, `Full-time employed`, `Part-time employed`, 
+                Disabled, Unemployed)
+)
 ```
 
