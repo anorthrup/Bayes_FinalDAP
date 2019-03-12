@@ -140,3 +140,9 @@ table1 <- bind_rows(
 )
 ```
 
+```{r summaryTable}
+kable(table1) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+```
+
