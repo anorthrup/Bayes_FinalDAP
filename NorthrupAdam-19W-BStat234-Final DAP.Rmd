@@ -32,13 +32,16 @@ acasi3 <- acasi2 %>%
          HealthInfo = if_else(S56_24XL + S56_24XM + S56_24XN + S56_24XO > 0 &
                                 S56_24XL + S56_24XM + S56_24XN + S56_24XO < 8,
                               1, 0)) %>%
-  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, GENDER_RC, 
+  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, SEXBRTH, GENDER_RC, 
          ORIENT_RC, GRADE_RC, 
          contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
   mutate(SINCEHIV = 2019 - DIAGHIV) %>%
-  mutate_at(vars(RACE_RC, GENDER_RC, ORIENT_RC, GRADE_RC),
+  mutate_at(vars(RACE_RC, SEXBRTH, GENDER_RC, ORIENT_RC, GRADE_RC),
             funs(as.factor)) %>%
-  mutate(GENDER_RC = fct_recode(GENDER_RC,
+  mutate(SEXBRTH = fct_recode(SEXBRTH,
+                              "Male" = "1",
+                              "Female" = "2"),
+         GENDER_RC = fct_recode(GENDER_RC,
                                 "Man" = "Male (cis man)",
                                 "Woman" = "Female (cis woman)"))
 y <- acasi3$HealthInfo
@@ -46,6 +49,56 @@ x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + GENDER_RC + ORIENT_RC +
                     GRADE_RC + 
                     EMPLOYA + EMPLOYB + EMPLOYC + EMPLOYD + EMPLOYE_RC, 
                   data = acasi3)
+```
 
+```{r summary}
+#####Create summary tables
+#Functions
+tab1_OneFactor <- function (x, varString, varRelevel = NULL) {
+  varName <- str_replace(varString, " ", ".")
+  x %>%
+      select(varString) %>%
+      table() %>%
+      as.data.frame(., stringsAsFactors = FALSE) %>%
+      setNames(c("Variable", "N")) %>%
+      mutate(Percent = scales::percent(N / sum(N), accuracy = 0.1)) %>%
+    unite("Frequency", N, Percent, sep = " (") %>%
+    mutate(Frequency = str_replace(Frequency, "(.*)", "\\1)"),
+           Variable = as.character(Variable)) %>%
+    mutate(Variable = fct_relevel(as.factor(Variable), varRelevel)) %>%
+    arrange(Variable) %>%
+    mutate(Variable = as.character(Variable))
+}
+
+tab1_ManyBinary <- function (x, ..., response = 1) {
+  selectVars <- quos(...)
+  selectStrings <- gsub("~|`", "", as.character(selectVars))
+  x %>%
+    select(!!! selectVars) %>%
+    summarize_all(funs(N = length(which(. == response)),
+                       P = length(which(. == response)) /
+                         length(which(!is.na(.))))) %>%
+                         {
+                           full_join(select(., -contains("_P")) %>%
+                                       gather("Variable", "N", contains("_N")) %>%
+                                       mutate(Variable = str_replace(Variable, "_N", "")),
+                                     select(., -contains("_N")) %>%
+                                       gather("Variable", "P", contains("_P")) %>%
+                                       mutate(Variable = str_replace(Variable, "_P", "")),
+                                     by = "Variable")
+                         } %>%
+    mutate(P = scales::percent(P, accuracy = 0.1)) %>%
+    unite("Frequency", N, P, sep = " (") %>%
+    mutate(Frequency = str_replace(Frequency, "(.*)", "\\1)")) %>%
+    mutate(Variable = factor(Variable, levels = selectStrings)) %>%
+    arrange(Variable) %>%
+    mutate(Variable = as.character(Variable))
+}
+
+tab1_OneFactor(acasi3, varString = "RACE_RC", 
+               varRelevel = c("Latino", "Black, Not Latino",
+                              "White, Not Latino", 
+                              "White Mixed-Race, Not Latino or Black"))
+tab1_ManyBinary(acasi3, EMPLOYA, EMPLOYB, EMPLOYC, EMPLOYD, EMPLOYE_RC)
 ```
 
