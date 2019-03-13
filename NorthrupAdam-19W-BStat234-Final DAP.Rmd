@@ -33,11 +33,11 @@ acasi3 <- acasi2 %>%
          HealthInfo = if_else(S56_24XL + S56_24XM + S56_24XN + S56_24XO > 0 &
                                 S56_24XL + S56_24XM + S56_24XN + S56_24XO < 8,
                               1, 0)) %>%
-  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, RACE_RC, SEXBRTH, GENDER, 
-         ORIENT, GRADE_RC, 
+  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, ORIENT, GENDER, GRADE, 
+         LATINO, starts_with("RACE"), -RACE, -RACEFS,
          contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
   mutate(SINCEHIV = 2019 - DIAGHIV) %>%
-  mutate_at(vars(RACE_RC, GENDER, ORIENT, GRADE_RC),
+  mutate_at(vars(RACE_RC, ORIENT, GENDER, GRADE),
             funs(as.factor)) %>%
   mutate(ORIENT_RC = fct_recode(as.factor(ORIENT),
                                 "Straight"          = "1", 
@@ -45,14 +45,29 @@ acasi3 <- acasi2 %>%
                                 "Other orientation" = "3",
                                 "Other orientation" = "4", 
                                 "Other orientation" = "5", 
-                                "Other orientation" = "7"),
+                                "Other orientation" = "7",
+                                "Refuse to answer"  = "8"),
          GENDER_RC = fct_recode(GENDER,
                                 "Cis man"          = "1", 
                                 "Cis woman"        = "2",
                                 "Trans man"        = "3", 
                                 "Trans woman"      = "4",
                                 "Other gender"     = "5", 
-                                "Other gender"     = "6")) %>%
+                                "Other gender"     = "6",
+                                "Refuse to answer" = "8"),
+         GRADE_RC = fct_recode(as.factor(GRADE),
+                               "High school, equivalent or less"  = "1", 
+                               "High school, equivalent or less"  = "2", 
+                               "High school, equivalent or less"  = "3", 
+                               "More than high school"            = "4", 
+                               "More than high school"            = "5", 
+                               "More than high school"            = "6",
+                               "More than high school"            = "7", 
+                               "Refuse to answer"                 = "8"),
+         RACE_RC = case_when(LATINO == 1 ~ "Latino",
+                             RACEC == 1 ~ "Black, Not Latino",
+                             RACEE == 1 ~ "White, Not Latino",
+                             TRUE ~ "Other race")) %>%
   unite("ORIENT_GENDER", ORIENT_RC, GENDER_RC, sep = " ", remove = FALSE) %>%
   mutate(ORIENT_GENDER = fct_lump(as.factor(ORIENT_GENDER),
                                   n = 5,
@@ -137,19 +152,12 @@ table1 <- bind_rows(
     mutate_if(is.numeric, funs(round), 1) %>%
     unite("Frequency", Mean, SD, sep = " (") %>%
     mutate(Frequency = paste0(Frequency, ")")),
-  tab1_OneFactor(demo, varString = "SEXBRTH", varRelevel = "Male"),
-  tab1_OneFactor(demo, varString = "GENDER_RC", 
-                 varRelevel = c("Man", "Woman", "Transgender")),
-  tab1_OneFactor(demo, varString = "ORIENT_RC",
-                 varRelevel = c("Straight", "Lesbian or gay",
-                                "Bisexual")),
+  tab1_OneFactor(demo, varString = "ORIENT_GENDER"),
   tab1_OneFactor(demo, varString = "RACE_RC", 
-               varRelevel = c("Latino", "Black, Not Latino",
-                              "White, Not Latino", 
-                              "White Mixed-Race, Not Latino or Black")),
+                 varRelevel = c("Latino", "Black, Not Latino",
+                                "White, Not Latino")),
   tab1_OneFactor(demo, varString = "GRADE_RC",
-                 varRelevel = c("High school, equivalent or less",
-                                "Some post-K12")),
+                 varRelevel = c("High school, equivalent or less")),
   tab1_ManyBinary(demo, Student, `Full-time employed`, `Part-time employed`, 
                 Disabled, Unemployed)
 )
