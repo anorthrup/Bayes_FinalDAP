@@ -39,22 +39,15 @@ acasi3 <- acasi2 %>%
   mutate(SINCEHIV = 2019 - DIAGHIV) %>%
   mutate_at(vars(RACE_RC, ORIENT, GENDER, GRADE),
             funs(as.factor)) %>%
-  mutate(ORIENT_RC = fct_recode(as.factor(ORIENT),
-                                "Straight"          = "1", 
-                                "Lesbian or gay"    = "2", 
-                                "Other orientation" = "3",
-                                "Other orientation" = "4", 
-                                "Other orientation" = "5", 
-                                "Other orientation" = "7",
-                                "Refuse to answer"  = "8"),
+  mutate(LGBTQ = if_else(ORIENT == 1 & GENDER %in% c(1, 2), 0, 1),
          GENDER_RC = fct_recode(GENDER,
-                                "Cis man"          = "1", 
-                                "Cis woman"        = "2",
-                                "Trans man"        = "3", 
-                                "Trans woman"      = "4",
-                                "Other gender"     = "5", 
-                                "Other gender"     = "6",
-                                "Refuse to answer" = "8"),
+                                 "Man"              = "1", 
+                                 "Woman"            = "2",
+                                 "Man"              = "3", 
+                                 "Woman"            = "4",
+                                 "Other gender"     = "5", 
+                                 "Other gender"     = "6",
+                                 "Refuse to answer" = "8"),
          GRADE_RC = fct_recode(as.factor(GRADE),
                                "High school, equivalent or less"  = "1", 
                                "High school, equivalent or less"  = "2", 
@@ -69,19 +62,14 @@ acasi3 <- acasi2 %>%
                              RACEE == 1 ~ "White, Not Latino",
                              TRUE ~ "Other race"),
          EMPLOYB_RC = if_else(EMPLOYB == 1 | EMPLOYC == 1, 1, 0)) %>%
-  unite("ORIENT_GENDER", ORIENT_RC, GENDER_RC, sep = " ", remove = FALSE) %>%
-  mutate(ORIENT_GENDER = fct_lump(as.factor(ORIENT_GENDER),
-                                  n = 5,
-                                  other_level = "Other Orientation/Gender"),
-         ORIENT_GENDER = fct_recode(ORIENT_GENDER,
-                                    "Gay cis man" = "Lesbian or gay Cis man",
-                                    "Lesbian trans woman" = "Lesbian or gay Trans woman")) %>%
-  select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, ORIENT_GENDER, GRADE_RC, RACE_RC,
+  select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, LGBTQ, GENDER_RC, 
+         GRADE_RC, RACE_RC,
          EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC) %>%
   rename(Age = SCREEN1)
 
 y <- acasi3$HealthInfo
-x <- model.matrix(~ SINCEHIV + Age + RACE_RC + ORIENT_GENDER + GRADE_RC + 
+x <- model.matrix(~ SINCEHIV + Age + LGBTQ + GENDER_RC + 
+                    GRADE_RC + RACE_RC + 
                     EMPLOYA + EMPLOYB_RC + EMPLOYD + EMPLOYE_RC, 
                   data = acasi3)
 ```
@@ -143,7 +131,10 @@ demo <- acasi3 %>%
   rename(`Student` = EMPLOYA,
          `Employed` = EMPLOYB_RC,
          `Disabled` = EMPLOYD,
-         `Unemployed` = EMPLOYE_RC)
+         `Unemployed` = EMPLOYE_RC) %>%
+  mutate(LGBTQ = fct_recode(as.factor(LGBTQ),
+                            "Non-LGBTQ" = "0", 
+                            "LGBTQ" = "1"))
 
 table1 <- bind_rows(
   demo %>%
@@ -162,7 +153,8 @@ table1 <- bind_rows(
     mutate_if(is.numeric, funs(round), 1) %>%
     unite("Sample Frequency", Mean, SD, sep = " (") %>%
     mutate(`Sample Frequency` = paste0(`Sample Frequency`, ")")),
-  tab1_OneFactor(demo, varString = ORIENT_GENDER),
+  tab1_OneFactor(demo, varString = LGBTQ),
+  tab1_OneFactor(demo, varString = GENDER_RC),
   tab1_OneFactor(demo, varString = RACE_RC),
   tab1_OneFactor(demo, varString = GRADE_RC),
   tab1_ManyBinary(demo, Student, Employed, Disabled, Unemployed)
