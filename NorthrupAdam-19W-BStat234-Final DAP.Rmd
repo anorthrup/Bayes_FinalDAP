@@ -24,17 +24,6 @@ load("ETAC/acasi.RData")
 This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. Whether an individual seeks health information online is thought to be predicted by age, race, gender, sexual orientation, education, employment, and time since diagnosis. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect will be measured using logistic regression, and will take the form of an odds ratio, $e^{\beta}$. $\beta$ is a vector of regression coefficients. Each covariate will be controlled for in determining the effect of the covariate of interest, time since HIV diagnosis. Regression coefficients are expected to follow a normal distribution with mean zero and high variance. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
 
 ```{r data}
-acasi4 <- acasi3 %>%
-  mutate(EMPLOYA = fct_recode(as.factor(EMPLOYA), "A" = "1"),
-         EMPLOYB_RC = fct_recode(as.factor(EMPLOYB_RC), "B" = "1"),
-         EMPLOYD = fct_recode(as.factor(EMPLOYD), "D" = "1"),
-         EMPLOYE_RC = fct_recode(as.factor(EMPLOYE_RC), "E" = "1"),
-         EMPLOY = str_replace_all(
-           paste0(EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC),
-           "0", ""
-         )
-  ) %>%
-  select(starts_with("EMPLOY"))
 acasi3 <- acasi2 %>%
   filter(!is.na(SCREEN1)) %>%
   filter(BORNHIV == 0) %>%
@@ -205,6 +194,11 @@ plotSINCEHIV <- ggplot(demoPlots, aes(x = SINCEHIV, fill = factor(HealthInfo))) 
   geom_histogram(binwidth = 1, show.legend = FALSE) +
   facet_grid(~HealthInfo) +
   labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Health Information Seeking")
+
+ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
+  geom_point(position = position_jitter()) +
+  labs(y = "Time Since HIV Diagnosis (yr)", x = "Age (yr)",
+       title = "Age Against Time Since Diagnosis, Separated by Outcome")
 ```
 
 ```{r model}
@@ -212,10 +206,10 @@ cat(
 "model{
   for (i in 1:N.obs) {
 		y[i] ~ dbern(pie[i])
-    logit(pie[i]) <- inprod(x[], alpha[]) + beta[id[i]]
+    logit(pie[i]) <- inprod(x[i, ], alpha[]) + beta[site[i]]
   }
   for (j in 1:N.sites) {
-    beta[j] ~ dnorm(0, tau.b)
+    beta[j] ~ dnorm(0, tau)
   }
   alpha[1] ~ dnorm(0, 1)
   alpha[2] ~ dnorm(0, 0.5)
@@ -230,14 +224,70 @@ cat(
   alpha[11] ~ dnorm(1, 1)
   alpha[12] ~ dnorm(1, 1)
   alpha[13] ~ dnorm(0, 1)
-  tau.b ~ dnorm(0, 0.1)
+  tau ~ dgamma(b1, b2)
+  sigma <- 1/ tau
 }",
   fill = TRUE,
 	file = "model_logit_mixed.txt")
-
-
 ```
 
+```{r model2}
+cat(
+"model{
+  for (i in 1:N.obs) {
+		y[i] ~ dbern(pie[i])
+    logit(pie[i]) <- inprod(x[i, ], alpha[]) + beta[site[i]]
+  }
+  for (j in 1:N.sites) {
+    beta[j] ~ dnorm(0, tau)
+  }
+  alpha[1] ~ dnorm(0, 1)
+  alpha[2] ~ dnorm(0, 1)
+  alpha[3] ~ dnorm(1, 1)
+  alpha[4] ~ dnorm(1, 1)
+  alpha[5] ~ dnorm(1, 1)
+  alpha[6] ~ dnorm(0, 1)
+  alpha[7] ~ dnorm(0, 1)
+  alpha[8] ~ dnorm(0, 1)
+  alpha[9] ~ dnorm(1, 1)
+  alpha[10] ~ dnorm(1, 1)
+  alpha[11] ~ dnorm(1, 1)
+  alpha[12] ~ dnorm(0, 1)
+  tau ~ dgamma(b1, b2)
+  sigma <- 1/ tau
+}",
+  fill = TRUE,
+	file = "model_logit_mixed2.txt")
+```
+
+```{r}
+parametersMod1 <- c("pie", "alpha", "sigma")
+
+initsMod1 <- rep(
+  list(
+    list(
+      alpha = rep(0, 13),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod1 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     y = y, 
+                     x = x)
+proc.time()
+runMod1 = jags(priorDataMod1, initsMod1, parametersMod1, 
+               "model_logit_mixed.txt", 
+               n.chains = 5, n.iter = 1100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 1)
+```
 
 ```{r summaryTable}
 kable(table1) %>%
