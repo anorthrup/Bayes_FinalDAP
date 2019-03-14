@@ -117,27 +117,25 @@ tab1_OneFactor <- function (x, varString, varRelevel = NULL) {
 
 tab1_ManyBinary <- function (x, ..., response = 1) {
   selectVars <- quos(...)
-  selectStrings <- gsub("~|`", "", as.character(selectVars))
   x %>%
-    select(!!! selectVars) %>%
-    summarize_all(funs(N = length(which(. == response)),
-                       P = length(which(. == response)) /
-                         length(which(!is.na(.))))) %>%
-                         {
-                           full_join(select(., -contains("_P")) %>%
-                                       gather("Variable", "N", contains("_N")) %>%
-                                       mutate(Variable = str_replace(Variable, "_N", "")),
-                                     select(., -contains("_N")) %>%
-                                       gather("Variable", "P", contains("_P")) %>%
-                                       mutate(Variable = str_replace(Variable, "_P", "")),
-                                     by = "Variable")
-                         } %>%
-    mutate(P = scales::percent(P, accuracy = 0.1)) %>%
-    unite("Frequency", N, P, sep = " (") %>%
-    mutate(Frequency = str_replace(Frequency, "(.*)", "\\1)")) %>%
-    mutate(Variable = factor(Variable, levels = selectStrings)) %>%
-    arrange(Variable) %>%
-    mutate(Variable = as.character(Variable))
+    select(HealthInfo, !!!selectVars) %>%
+    gather("Variable", "Value", -HealthInfo) %>%
+    group_by(Variable) %>%
+    summarize(N = sum(Value),
+              P = sum(Value) / n(),
+              N.y = sum(HealthInfo[which(Value == 1)]),
+              P.y = sum(HealthInfo[which(Value == 1)]) / 
+                length(HealthInfo[which(Value == 1)])) %>%
+    arrange(desc(N)) %>%
+    mutate(`Sample Frequency` = paste0(N, 
+                                       " (", 
+                                       scales::percent(P, accuracy = 0.1),
+                                       ")"),
+           `Seeking Health Info` = paste0(N.y, 
+                                       " (", 
+                                       scales::percent(P.y, accuracy = 0.1),
+                                       ")")) %>%
+    select(-N, - P, -N.y, -P.y)
 }
 
 #Create summary table
