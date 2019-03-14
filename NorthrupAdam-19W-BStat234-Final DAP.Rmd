@@ -79,7 +79,7 @@ acasi3 <- acasi2 %>%
   select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, ORIENT_GENDER, GRADE_RC, RACE_RC,
          EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC) %>%
   rename(Age = SCREEN1)
-table(acasi3$ORIENT_GENDER)
+
 y <- acasi3$HealthInfo
 x <- model.matrix(~ SINCEHIV + Age + RACE_RC + ORIENT_GENDER + GRADE_RC + 
                     EMPLOYA + EMPLOYB_RC + EMPLOYD + EMPLOYE_RC, 
@@ -167,6 +167,19 @@ table1 <- bind_rows(
   tab1_OneFactor(demo, varString = GRADE_RC),
   tab1_ManyBinary(demo, Student, Employed, Disabled, Unemployed)
 )
+
+demoPlots <- demo %>%
+  mutate(HealthInfo = fct_recode(as.factor(HealthInfo),
+                                 "Seeks Info" = "1",
+                                 "Does Not Seek Info" = "0"))
+plotAge <- ggplot(demoPlots, aes(x = Age, fill = factor(HealthInfo))) +
+  geom_histogram(binwidth = 1, show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Count", title = "Distribution of Age Stratified by Health Information Seeking")
+plotSINCEHIV <- ggplot(demoPlots, aes(x = SINCEHIV, fill = factor(HealthInfo))) +
+  geom_histogram(binwidth = 1, show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Health Information Seeking")
 ```
 
 ```{r model}
@@ -179,7 +192,22 @@ cat(
   for (j in 1:N.sites) {
     beta[j] ~ dnorm(0, tau.b)
   }
-  alpha[2] ~ 
+  alpha[1] ~ dnorm(0, 1)
+  alpha[2] ~ dnorm(0, 1)
+  alpha[3] ~ dnorm(0, 1)
+  alpha[4] ~ dnorm(0, 1)
+  alpha[5] ~ dnorm(0, 1)
+  alpha[6] ~ dnorm(0, 1)
+  alpha[7] ~ dnorm(0, 1)
+  alpha[8] ~ dnorm(0, 1)
+  alpha[9] ~ dnorm(0, 1)
+  alpha[10] ~ dnorm(0, 1)
+  alpha[11] ~ dnorm(0, 1)
+  alpha[12] ~ dnorm(0, 1)
+  alpha[13] ~ dnorm(0, 1)
+  alpha[14] ~ dnorm(0, 1)
+  alpha[15] ~ dnorm(0, 1)
+  alpha[16] ~ dnorm(0, 1)
   tau.b ~ 
 }",
   fill = TRUE,
