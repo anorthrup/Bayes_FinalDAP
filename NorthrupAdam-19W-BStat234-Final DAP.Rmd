@@ -24,6 +24,17 @@ load("ETAC/acasi.RData")
 This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. Whether an individual seeks health information online is thought to be predicted by age, race, gender, sexual orientation, education, employment, and time since diagnosis. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect will be measured using logistic regression, and will take the form of an odds ratio, $e^{\beta}$. $\beta$ is a vector of regression coefficients. Each covariate will be controlled for in determining the effect of the covariate of interest, time since HIV diagnosis. Regression coefficients are expected to follow a normal distribution with mean zero and high variance. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
 
 ```{r data}
+acasi4 <- acasi3 %>%
+  mutate(EMPLOYA = fct_recode(as.factor(EMPLOYA), "A" = "1"),
+         EMPLOYB_RC = fct_recode(as.factor(EMPLOYB_RC), "B" = "1"),
+         EMPLOYD = fct_recode(as.factor(EMPLOYD), "D" = "1"),
+         EMPLOYE_RC = fct_recode(as.factor(EMPLOYE_RC), "E" = "1"),
+         EMPLOY = str_replace_all(
+           paste0(EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC),
+           "0", ""
+         )
+  ) %>%
+  select(starts_with("EMPLOY"))
 acasi3 <- acasi2 %>%
   filter(!is.na(SCREEN1)) %>%
   filter(BORNHIV == 0) %>%
@@ -36,10 +47,10 @@ acasi3 <- acasi2 %>%
   select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, ORIENT, GENDER, GRADE, 
          LATINO, starts_with("RACE"), -RACE, -RACEFS,
          contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
-  mutate(SINCEHIV = 2019 - DIAGHIV) %>%
-  mutate_at(vars(RACE_RC, ORIENT, GENDER, GRADE),
+  mutate_at(vars(RACE_RC, ORIENT, GENDER, GRADE, starts_with("EMPLOY")),
             funs(as.factor)) %>%
-  mutate(LGBTQ = if_else(ORIENT == 1 & GENDER %in% c(1, 2), 0, 1),
+  mutate(SINCEHIV = 2019 - DIAGHIV,
+         LGBTQ = if_else(ORIENT == 1 & GENDER %in% c(1, 2), 0, 1),
          GENDER_RC = fct_recode(GENDER,
                                  "Man"              = "1", 
                                  "Woman"            = "2",
@@ -61,17 +72,43 @@ acasi3 <- acasi2 %>%
                              RACEC == 1 ~ "Black, Not Latino",
                              RACEE == 1 ~ "White, Not Latino",
                              TRUE ~ "Other race"),
-         EMPLOYB_RC = if_else(EMPLOYB == 1 | EMPLOYC == 1, 1, 0)) %>%
+         EMPLOYB_RC = if_else(EMPLOYB == 1 | EMPLOYC == 1, 1, 0),
+         EMPLOYA = fct_recode(EMPLOYA, "A" = "1"),
+         EMPLOYB_RC = fct_recode(as.factor(EMPLOYB_RC), "B" = "1"),
+         EMPLOYD = fct_recode(EMPLOYD, "D" = "1"),
+         EMPLOYE_RC = fct_recode(EMPLOYE_RC, "E" = "1"),
+         EMPLOY = str_replace_all(
+           paste0(EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC),
+           "0", ""
+         ),
+         EMPLOY = fct_lump(as.factor(EMPLOY), n = 5),
+         EMPLOY = fct_recode(EMPLOY,
+                             "Student" = "A",
+                             "Student" = "AB",
+                             "Employed" = "B",
+                             "Disabled" = "D",
+                             "Unemployed" = "E")) %>%
   select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, LGBTQ, GENDER_RC, 
-         GRADE_RC, RACE_RC,
-         EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC) %>%
+         GRADE_RC, RACE_RC, EMPLOY) %>%
   rename(Age = SCREEN1)
 
 y <- acasi3$HealthInfo
-x <- model.matrix(~ SINCEHIV + Age + LGBTQ + GENDER_RC + 
-                    GRADE_RC + RACE_RC + 
-                    EMPLOYA + EMPLOYB_RC + EMPLOYD + EMPLOYE_RC, 
-                  data = acasi3)
+x <- acasi3 %>%
+  mutate(Intercept = 1,
+         Gender_Woman = if_else(GENDER_RC == "Woman", 1, 0),
+         Gender_Other = if_else(GENDER_RC == "Other gender", 1, 0),
+         Ed_Higher = if_else(GRADE_RC == "More than high school", 1, 0),
+         Race_Black = if_else(RACE_RC == "Black, Not Latino", 1, 0),
+         Race_White = if_else(RACE_RC == "White, Not Latino", 1, 0),
+         Race_Other = if_else(RACE_RC == "Other race", 1, 0),
+         Employ_Student = if_else(EMPLOY == "Student", 1, 0),
+         Employ_Employed = if_else(EMPLOY == "Employed", 1, 0),
+         Employ_Disabled = if_else(EMPLOY == "Disabled", 1, 0),
+         Employ_Other = if_else(EMPLOY == "Other", 1, 0)) %>%
+  select(Intercept, SINCEHIV, Age, starts_with("Gender_"), Ed_Higher, 
+         starts_with("Race_"), starts_with("Employ_"),
+         -GENDER_RC, -RACE_RC) %>%
+  as.matrix()
 ```
 
 ```{r summary}
@@ -128,10 +165,6 @@ tab1_ManyBinary <- function (x, ..., response = 1) {
 
 #Create summary table
 demo <- acasi3 %>%
-  rename(`Student` = EMPLOYA,
-         `Employed` = EMPLOYB_RC,
-         `Disabled` = EMPLOYD,
-         `Unemployed` = EMPLOYE_RC) %>%
   mutate(LGBTQ = fct_recode(as.factor(LGBTQ),
                             "Non-LGBTQ" = "0", 
                             "LGBTQ" = "1"))
@@ -157,7 +190,7 @@ table1 <- bind_rows(
   tab1_OneFactor(demo, varString = GENDER_RC),
   tab1_OneFactor(demo, varString = RACE_RC),
   tab1_OneFactor(demo, varString = GRADE_RC),
-  tab1_ManyBinary(demo, Student, Employed, Disabled, Unemployed)
+  tab1_OneFactor(demo, varString = EMPLOY)
 )
 
 demoPlots <- demo %>%
@@ -185,25 +218,23 @@ cat(
     beta[j] ~ dnorm(0, tau.b)
   }
   alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(0, 1)
-  alpha[3] ~ dnorm(0, 1)
-  alpha[4] ~ dnorm(0, 1)
-  alpha[5] ~ dnorm(0, 1)
-  alpha[6] ~ dnorm(0, 1)
+  alpha[2] ~ dnorm(0, 0.5)
+  alpha[3] ~ dnorm(1, 1)
+  alpha[4] ~ dnorm(1, 1)
+  alpha[5] ~ dnorm(1, 1)
+  alpha[6] ~ dnorm(1, 1)
   alpha[7] ~ dnorm(0, 1)
   alpha[8] ~ dnorm(0, 1)
   alpha[9] ~ dnorm(0, 1)
-  alpha[10] ~ dnorm(0, 1)
-  alpha[11] ~ dnorm(0, 1)
-  alpha[12] ~ dnorm(0, 1)
+  alpha[10] ~ dnorm(1, 1)
+  alpha[11] ~ dnorm(1, 1)
+  alpha[12] ~ dnorm(1, 1)
   alpha[13] ~ dnorm(0, 1)
-  alpha[14] ~ dnorm(0, 1)
-  alpha[15] ~ dnorm(0, 1)
-  alpha[16] ~ dnorm(0, 1)
-  tau.b ~ 
+  tau.b ~ dnorm(0, 0.1)
 }",
   fill = TRUE,
 	file = "model_logit_mixed.txt")
+
 
 ```
 
