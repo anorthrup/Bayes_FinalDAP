@@ -67,19 +67,22 @@ acasi3 <- acasi2 %>%
          RACE_RC = case_when(LATINO == 1 ~ "Latino",
                              RACEC == 1 ~ "Black, Not Latino",
                              RACEE == 1 ~ "White, Not Latino",
-                             TRUE ~ "Other race")) %>%
+                             TRUE ~ "Other race"),
+         EMPLOYB_RC = if_else(EMPLOYB == 1 | EMPLOYC == 1, 1, 0)) %>%
   unite("ORIENT_GENDER", ORIENT_RC, GENDER_RC, sep = " ", remove = FALSE) %>%
   mutate(ORIENT_GENDER = fct_lump(as.factor(ORIENT_GENDER),
                                   n = 5,
                                   other_level = "Other Orientation/Gender"),
          ORIENT_GENDER = fct_recode(ORIENT_GENDER,
                                     "Gay cis man" = "Lesbian or gay Cis man",
-                                    "Lesbian trans woman" = "Lesbian or gay Trans woman"))
+                                    "Lesbian trans woman" = "Lesbian or gay Trans woman")) %>%
+  select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, ORIENT_GENDER, GRADE_RC, RACE_RC,
+         EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC) %>%
+  rename(Age = SCREEN1)
 table(acasi3$ORIENT_GENDER)
 y <- acasi3$HealthInfo
-x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + ORIENT_GENDER +
-                    GRADE_RC + 
-                    EMPLOYA + EMPLOYB + EMPLOYC + EMPLOYD + EMPLOYE_RC, 
+x <- model.matrix(~ SINCEHIV + Age + RACE_RC + ORIENT_GENDER + GRADE_RC + 
+                    EMPLOYA + EMPLOYB_RC + EMPLOYD + EMPLOYE_RC, 
                   data = acasi3)
 ```
 
@@ -87,17 +90,27 @@ x <- model.matrix(~ SINCEHIV + SCREEN1 + RACE_RC + ORIENT_GENDER +
 #####Create summary tables
 #Functions
 tab1_OneFactor <- function (x, varString, varRelevel = NULL) {
-  varName <- str_replace(varString, " ", ".")
+  varQuo <- enquo(varString)
   x %>%
-      select(varString) %>%
-      table() %>%
-      as.data.frame(., stringsAsFactors = FALSE) %>%
-      setNames(c("Variable", "N")) %>%
-      mutate(Percent = scales::percent(N / sum(N), accuracy = 0.1)) %>%
-    unite("Frequency", N, Percent, sep = " (") %>%
-    mutate(Frequency = str_replace(Frequency, "(.*)", "\\1)"),
-           Variable = as.character(Variable)) %>%
-    mutate(Variable = fct_relevel(as.factor(Variable), varRelevel)) %>%
+    select(HealthInfo, !!varQuo) %>%
+    group_by(!!varQuo) %>%
+    summarize(N = n(),
+              P = n() / nrow(.),
+              N.y = sum(HealthInfo),
+              P.y = sum(HealthInfo) / length(HealthInfo)) %>%
+    arrange(desc(N)) %>%
+    mutate(`Sample Frequency` = paste0(N, 
+                                       " (", 
+                                       scales::percent(P, accuracy = 0.1),
+                                       ")"),
+           `Seeking Health Info` = paste0(N.y, 
+                                       " (", 
+                                       scales::percent(P.y, accuracy = 0.1),
+                                       ")")) %>%
+    rename(Variable = !!varQuo) %>%
+    select(-N, - P, -N.y, -P.y) %>%
+    mutate(Variable = fct_relevel(factor(Variable, levels = unique(Variable)), 
+                                  varRelevel)) %>%
     arrange(Variable) %>%
     mutate(Variable = as.character(Variable))
 }
@@ -130,36 +143,31 @@ tab1_ManyBinary <- function (x, ..., response = 1) {
 #Create summary table
 demo <- acasi3 %>%
   rename(`Student` = EMPLOYA,
-         `Full-time employed` = EMPLOYB,
-         `Part-time employed` = EMPLOYC,
+         `Employed` = EMPLOYB_RC,
          `Disabled` = EMPLOYD,
          `Unemployed` = EMPLOYE_RC)
 
 table1 <- bind_rows(
   demo %>%
       summarize(Variable = "Number of participants",
-                Frequency = as.character(n())),
+                `Sample Frequency` = as.character(n())),
   bind_rows(
     demo %>%
       summarize(Variable = "Age",
-                Mean = mean(SCREEN1),
-                SD = sd(SCREEN1)),
+                Mean = mean(Age),
+                SD = sd(Age)),
     demo %>%
       summarize(Variable = "Time since HIV diagnosis",
                 Mean = mean(SINCEHIV),
                 SD = sd(SINCEHIV))
   ) %>%
     mutate_if(is.numeric, funs(round), 1) %>%
-    unite("Frequency", Mean, SD, sep = " (") %>%
-    mutate(Frequency = paste0(Frequency, ")")),
-  tab1_OneFactor(demo, varString = "ORIENT_GENDER"),
-  tab1_OneFactor(demo, varString = "RACE_RC", 
-                 varRelevel = c("Latino", "Black, Not Latino",
-                                "White, Not Latino")),
-  tab1_OneFactor(demo, varString = "GRADE_RC",
-                 varRelevel = c("High school, equivalent or less")),
-  tab1_ManyBinary(demo, Student, `Full-time employed`, `Part-time employed`, 
-                Disabled, Unemployed)
+    unite("Sample Frequency", Mean, SD, sep = " (") %>%
+    mutate(`Sample Frequency` = paste0(`Sample Frequency`, ")")),
+  tab1_OneFactor(demo, varString = ORIENT_GENDER),
+  tab1_OneFactor(demo, varString = RACE_RC),
+  tab1_OneFactor(demo, varString = GRADE_RC),
+  tab1_ManyBinary(demo, Student, Employed, Disabled, Unemployed)
 )
 ```
 
