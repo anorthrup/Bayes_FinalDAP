@@ -195,10 +195,12 @@ plotSINCEHIV <- ggplot(demoPlots, aes(x = SINCEHIV, fill = factor(HealthInfo))) 
   facet_grid(~HealthInfo) +
   labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Health Information Seeking")
 
-ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
-  geom_point(position = position_jitter()) +
+plotCorr <- ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
+  geom_point(position = position_jitter(), show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
   labs(y = "Time Since HIV Diagnosis (yr)", x = "Age (yr)",
        title = "Age Against Time Since Diagnosis, Separated by Outcome")
+corAgeSinceHIV <- cor(x[, 2:3])[1, 2]
 ```
 
 ```{r model}
@@ -260,7 +262,7 @@ cat(
 	file = "model_logit_mixed2.txt")
 ```
 
-```{r}
+```{r runMod1}
 parametersMod1 <- c("pie", "alpha", "sigma")
 
 initsMod1 <- rep(
@@ -283,10 +285,64 @@ priorDataMod1 = list(N.obs = nrow(acasi3),
 proc.time()
 runMod1 = jags(priorDataMod1, initsMod1, parametersMod1, 
                "model_logit_mixed.txt", 
-               n.chains = 5, n.iter = 1100, n.burnin = 0, n.thin = 1)
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
 proc.time()
 burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
-                      burnin = 100, n.thin = 1)
+                      burnin = 100, n.thin = 5)
+```
+
+```{r runMod2}
+initsMod2 <- rep(
+  list(
+    list(
+      alpha = rep(0, 12),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod2 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     y = y, 
+                     x = x[, -3])
+proc.time()
+runMod2 = jags(priorDataMod2, initsMod2, parametersMod1, 
+               "model_logit_mixed2.txt", 
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 5)
+```
+
+```{r jagsPlots}
+plotACF <- function (burn, n, name, model = NULL, lag.max = NULL) {
+  for(i in 1:length(name)) {
+    acf(burn$Burnin.sims.matrix[1:n, name[1]], lag.max = lag.max, 
+        main = paste(model, name[i]))
+  }
+}
+plotTime <- function (burn, n, name, model = NULL) {
+  for(i in 1:length(name)) {
+    plot(1:n, burn$Burnin.sims.matrix[1:n, name[1]], type = "l", 
+         main = paste(model, name[i]), ylab = name[i], xlab = "Iteration")
+  }
+}
+par(mfrow = c(2, 2))
+plotACF(burnMod1, n = 1000, "sigma", "Model 1")
+plotACF(burnMod2, n = 1000, "sigma", "Model 2")
+plotTime(burnMod1, n = 1000, "sigma", "Model 1")
+plotTime(burnMod2, n = 1000, "sigma", "Model 2")
+
+par(mfrow = c(3, 2))
+plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
+plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+par(mfrow = c(3, 2))
+plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
+plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
 ```
 
 ```{r summaryTable}
