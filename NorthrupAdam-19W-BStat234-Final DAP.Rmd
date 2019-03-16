@@ -230,7 +230,7 @@ cat(
   sigma <- 1/ tau
 }",
   fill = TRUE,
-	file = "model_logit_mixed.txt")
+	file = "model1_logit_mixed.txt")
 ```
 
 ```{r model2}
@@ -259,98 +259,7 @@ cat(
   sigma <- 1/ tau
 }",
   fill = TRUE,
-	file = "model_logit_mixed2.txt")
-```
-
-```{r runMod1}
-parametersMod1 <- c("pie", "alpha", "sigma")
-
-initsMod1 <- rep(
-  list(
-    list(
-      alpha = rep(0, 13),  
-      beta  = rep(0, length(unique(acasi3$Site))),  
-      tau   = 1)
-  ),
-  5
-)
-
-priorDataMod1 = list(N.obs = nrow(acasi3), 
-                     N.sites = length(unique(acasi3$Site)),
-                     site = acasi3$Site,
-                     b1 = 0.25, 
-                     b2 = 0.25,
-                     y = y, 
-                     x = x)
-proc.time()
-runMod1 = jags(priorDataMod1, initsMod1, parametersMod1, 
-               "model_logit_mixed.txt", 
-               n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
-proc.time()
-burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
-                      burnin = 100, n.thin = 8)
-```
-
-```{r runMod2}
-initsMod2 <- rep(
-  list(
-    list(
-      alpha = rep(0, 12),  
-      beta  = rep(0, length(unique(acasi3$Site))),  
-      tau   = 1)
-  ),
-  5
-)
-
-priorDataMod2 = list(N.obs = nrow(acasi3), 
-                     N.sites = length(unique(acasi3$Site)),
-                     site = acasi3$Site,
-                     b1 = 0.25, 
-                     b2 = 0.25,
-                     y = y, 
-                     x = x[, -3])
-proc.time()
-runMod2 = jags(priorDataMod2, initsMod2, parametersMod1, 
-               "model_logit_mixed2.txt", 
-               n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
-proc.time()
-burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array, 
-                      burnin = 100, n.thin = 8)
-```
-
-```{r jagsPlots}
-plotACF <- function (burn, n, name, model = NULL, lag.max = NULL) {
-  for(i in 1:length(name)) {
-    acf(burn$Burnin.sims.matrix[1:n, name[1]], lag.max = lag.max, 
-        main = paste(model, name[i]))
-  }
-}
-plotTime <- function (burn, n, name, model = NULL) {
-  for(i in 1:length(name)) {
-    plot(1:n, burn$Burnin.sims.matrix[1:n, name[1]], type = "l", 
-         main = paste(model, name[i]), ylab = name[i], xlab = "Iteration")
-  }
-}
-par(mfrow = c(2, 2))
-plotACF(burnMod1, n = 1000, "sigma", "Model 1")
-plotACF(burnMod2, n = 1000, "sigma", "Model 2")
-plotTime(burnMod1, n = 1000, "sigma", "Model 1")
-plotTime(burnMod2, n = 1000, "sigma", "Model 2")
-
-par(mfrow = c(3, 2))
-plotACF(burnMod1, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
-plotACF(burnMod1, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
-par(mfrow = c(3, 2))
-plotTime(burnMod1, n = 1000, paste0("alpha[", 1:6, "]"), "Model 1")
-plotTime(burnMod1, n = 1000, paste0("alpha[", 7:12, "]"), "Model 1")
-runMod1$BUGSoutput$DIC
-runMod2$BUGSoutput$DIC
-```
-
-```{r summaryTable}
-kable(table1) %>%
-  kable_styling(bootstrap_options = c("striped", "condensed"),
-                full_width = FALSE)
+	file = "model2_logit_mixed.txt")
 ```
 
 ```{r model3}
@@ -380,6 +289,62 @@ cat(
 	file = "model3_logit_fixed.txt")
 ```
 
+```{r runMod1}
+parametersMod1 <- c("pie", "alpha", "sigma")
+
+initsMod1 <- rep(
+  list(
+    list(
+      alpha = rep(0, 13),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod1 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     y = y, 
+                     x = x)
+proc.time()
+runMod1 = jags(priorDataMod1, initsMod1, parametersMod1, 
+               "model1_logit_mixed.txt", 
+               n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 8)
+```
+
+```{r runMod2}
+initsMod2 <- rep(
+  list(
+    list(
+      alpha = rep(0, 12),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod2 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     y = y, 
+                     x = x[, -3])
+proc.time()
+runMod2 = jags(priorDataMod2, initsMod2, parametersMod1, 
+               "model2_logit_mixed.txt", 
+               n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 8)
+```
+
 ```{r runMod3}
 initsMod3 <- rep(
   list(
@@ -404,10 +369,42 @@ burnMod3 <- AddBurnin(runMod3$BUGSoutput$sims.array,
                       burnin = 100, n.thin = 1)
 ```
 
-```{r plotsMod3}
-par(mfrow = c(1, 1))
+```{r jagsPlots}
+plotACF <- function (burn, n, name, model = NULL, lag.max = NULL) {
+  for(i in 1:length(name)) {
+    acf(burn$Burnin.sims.matrix[1:n, name[1]], lag.max = lag.max, 
+        main = paste(model, name[i]))
+  }
+}
+plotTime <- function (burn, n, name, model = NULL, ylim = NULL) {
+  for(i in 1:length(name)) {
+    plot(1:n, burn$Burnin.sims.matrix[1:n, name[1]], type = "l", 
+         main = paste(model, name[i]), ylab = name[i], xlab = "Iteration",
+         ylim = ylim)
+  }
+}
+par(mfrow = c(2, 3))
+plotACF(burnMod1, n = 1000, "sigma", "Model 1")
+plotACF(burnMod2, n = 1000, "sigma", "Model 2")
 plotACF(burnMod3, n = 1000, "sigma", "Model 3")
-plotTime(burnMod3, n = 1000, "sigma", "Model 3")
+plotTime(burnMod1, n = 1000, "sigma", "Model 1", ylim = c(0, 3))
+plotTime(burnMod2, n = 1000, "sigma", "Model 2", ylim = c(0, 3))
+plotTime(burnMod3, n = 1000, "sigma", "Model 3", ylim = c(0, 3))
+
+par(mfrow = c(2, 3))
+plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
+plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+par(mfrow = c(3, 2))
+plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
+plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+runMod1$BUGSoutput$DIC
+runMod2$BUGSoutput$DIC
 runMod3$BUGSoutput$DIC
+```
+
+```{r summaryTable}
+kable(table1) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
 ```
 
