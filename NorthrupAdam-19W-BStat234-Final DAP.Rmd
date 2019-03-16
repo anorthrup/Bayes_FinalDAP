@@ -289,8 +289,8 @@ cat(
 	file = "model3_logit_fixed.txt")
 ```
 
-```{r runMod1}
-parametersMod1 <- c("pie", "alpha", "sigma")
+```{r runMod1, eval = FALSE}
+parameters <- c("pie", "alpha", "beta", "sigma")
 
 initsMod1 <- rep(
   list(
@@ -310,7 +310,7 @@ priorDataMod1 = list(N.obs = nrow(acasi3),
                      y = y, 
                      x = x)
 proc.time()
-runMod1 = jags(priorDataMod1, initsMod1, parametersMod1, 
+runMod1 = jags(priorDataMod1, initsMod1, parameters, 
                "model1_logit_mixed.txt", 
                n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
 proc.time()
@@ -318,7 +318,7 @@ burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array,
                       burnin = 100, n.thin = 8)
 ```
 
-```{r runMod2}
+```{r runMod2, eval = FALSE}
 initsMod2 <- rep(
   list(
     list(
@@ -337,7 +337,7 @@ priorDataMod2 = list(N.obs = nrow(acasi3),
                      y = y, 
                      x = x[, -3])
 proc.time()
-runMod2 = jags(priorDataMod2, initsMod2, parametersMod1, 
+runMod2 = jags(priorDataMod2, initsMod2, parameters, 
                "model2_logit_mixed.txt", 
                n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
 proc.time()
@@ -345,7 +345,7 @@ burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array,
                       burnin = 100, n.thin = 8)
 ```
 
-```{r runMod3}
+```{r runMod3, eval = FALSE}
 initsMod3 <- rep(
   list(
     list(
@@ -361,7 +361,7 @@ priorDataMod3 = list(N.obs = nrow(acasi3),
                      y = y, 
                      x = x)
 proc.time()
-runMod3 = jags(priorDataMod3, initsMod3, parametersMod1, 
+runMod3 = jags(priorDataMod3, initsMod3, parameters, 
                "model3_logit_fixed.txt", 
                n.chains = 5, n.iter = 1100, n.burnin = 0, n.thin = 1)
 proc.time()
@@ -397,9 +397,31 @@ plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
 par(mfrow = c(3, 2))
 plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
 plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
-runMod1$BUGSoutput$DIC
-runMod2$BUGSoutput$DIC
-runMod3$BUGSoutput$DIC
+dicMod1 <- runMod1$BUGSoutput$DIC
+dicMod2 <- runMod2$BUGSoutput$DIC
+dicMod3 <- runMod3$BUGSoutput$DIC
+```
+
+```{r diagnostics}
+sumMod2 <- burnMod2$Burnin.Summary %>%
+  as.data.frame() %>%
+  rownames_to_column("Parameter") %>%
+  setNames(c("Parameter", "Mean", "SD", "2.5%", "97.5%", "P>0"))
+alphaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "alpha")]
+betaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "beta")]
+piMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "pie")]
+diagMod2 <- tibble(y = y,
+                    pi = piMod2, 
+                    logitPi = log(pi / (1 - pi)),
+                    SINCEHIV = x[, 2],
+                    a2 = alphaMod2[2]) %>%
+  mutate(xa = SINCEHIV * a2)
+ggplot(diagMod2, aes(x = xa, y = logitPi)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+ggplot(diagMod2, aes(x = SINCEHIV, y = pi)) +
+  geom_point() +
+  geom_smooth(method = "loess")
 ```
 
 ```{r summaryTable}
