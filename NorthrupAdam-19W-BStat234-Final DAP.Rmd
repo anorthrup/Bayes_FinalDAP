@@ -203,7 +203,7 @@ plotCorr <- ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
 corAgeSinceHIV <- cor(x[, 2:3])[1, 2]
 ```
 
-```{r model}
+```{r model1}
 cat(
 "model{
   for (i in 1:N.obs) {
@@ -214,7 +214,7 @@ cat(
     beta[j] ~ dnorm(0, tau)
   }
   alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(0, 0.5)
+  alpha[2] ~ dnorm(-1, 1)
   alpha[3] ~ dnorm(1, 1)
   alpha[4] ~ dnorm(1, 1)
   alpha[5] ~ dnorm(1, 1)
@@ -244,7 +244,7 @@ cat(
     beta[j] ~ dnorm(0, tau)
   }
   alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(0, 1)
+  alpha[2] ~ dnorm(-1, 1)
   alpha[3] ~ dnorm(1, 1)
   alpha[4] ~ dnorm(1, 1)
   alpha[5] ~ dnorm(1, 1)
@@ -270,7 +270,7 @@ cat(
     logit(pie[i]) <- inprod(x[i, ], alpha[])
   }
   alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(0, 0.5)
+  alpha[2] ~ dnorm(-1, 1)
   alpha[3] ~ dnorm(1, 1)
   alpha[4] ~ dnorm(1, 1)
   alpha[5] ~ dnorm(1, 1)
@@ -363,10 +363,10 @@ priorDataMod3 = list(N.obs = nrow(acasi3),
 proc.time()
 runMod3 = jags(priorDataMod3, initsMod3, parameters, 
                "model3_logit_fixed.txt", 
-               n.chains = 5, n.iter = 1100, n.burnin = 0, n.thin = 1)
+               n.chains = 5, n.iter = 8100, n.burnin = 0, n.thin = 1)
 proc.time()
 burnMod3 <- AddBurnin(runMod3$BUGSoutput$sims.array, 
-                      burnin = 100, n.thin = 1)
+                      burnin = 100, n.thin = 8)
 ```
 
 ```{r jagsPlots}
@@ -429,21 +429,49 @@ ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
 ```
 
 ```{r plotPosterior}
-priorMeans <- c(0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0)
+priorMeans <- c(0, -1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0)
 priorX <- double(485220)
+likeliX <- double(485220)
+likeliMod <- lm(HealthInfo ~ SINCEHIV + Gender_Woman + Gender_Other +
+                  Ed_Higher + Race_Black + Race_White + Race_Other +
+                  Employ_Student + Employ_Employed + Employ_Disabled + 
+                  Employ_Other, 
+                 data = bind_cols(
+                   tibble(HealthInfo = y), 
+                   as.tibble(x[, c(-1 ,-3)])))
+likeliMeans <- likeliMod$coefficients
+likeliSDs <- summary(likeliMod)$coefficients[, "Std. Error"]
 for (i in 1:length(priorMeans)) {
   priorX[(40435*i - 40434):(40435*i)] <- rnorm(40435, priorMeans[i], 1)
+  likeliX[(40435*i - 40434):(40435*i)] <- rnorm(40435, 
+                                                likeliMeans[i],
+                                                likeliSDs[i])
 }
+alphaNames <- paste0("alpha[", 1:12, "]") %>%
+  setNames(colnames(x[, -3]))
 postMod2 <- burnMod2$Burnin.sims.matrix %>%
   as.data.frame() %>%
   select(contains("alpha")) %>%
   gather("Key", "Posterior") %>%
-  mutate(Key = factor(Key, levels = unique(Key)),
-         Prior = priorX)
-ggplot(postMod2, aes(x = Posterior)) +
-  facet_wrap(.~Key, scales = "free") + 
+  mutate(Key = fct_recode(factor(Key, levels = unique(Key)),
+                                 !!!alphaNames),
+         Prior = priorX,
+         Likelihood = likeliX)
+ggplot(postMod2 %>%
+         filter(Key == "SINCEHIV"),
+       aes(x = Posterior, color = "posterior")) +
   geom_density() +
-  geom_density(aes(x = Prior), color = "blue")
+  geom_density(aes(x = Prior, color = "prior")) +
+  geom_density(aes(x = Likelihood, color = "likeli")) +
+  scale_x_continuous(limits = c(-2, 0.1)) +
+  scale_y_continuous(limits = c(0, 20)) +
+  scale_color_manual(name = "Distribution",
+                     values = c("likeli" = "red",
+                                "posterior" = "purple", 
+                                "prior" = "blue"),                     
+                     labels = c("Likelihood", "Posterior", "Prior")) +
+  labs(y = "Density", x = "Time Since HIV Coefficient")
+
 ```
 
 ```{r summaryTable}
