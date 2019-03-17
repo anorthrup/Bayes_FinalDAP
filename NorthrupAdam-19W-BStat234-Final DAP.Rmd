@@ -21,7 +21,7 @@ load("models_1_2_3.RData")
 ```
 
 ## Abstract  
-This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for as age, race, gender, sexual orientation, education, and employment status. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be measured using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
+This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for as age, race, gender, sexual orientation, education, and employment status. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be measured using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each each site may be correlated, and so a site-specific effect will be considered.  
 
 ## Introduction  
 Investigators are interested in health-information seeking behavior in order to better adapt interventions geared toward HIV positive youth. The purpose of the survey is ultimately to determine factors that encourage participants to take an active role in their health care. This analysis will determine if one such factor, time since HIV diagnosis, has an effect on health-seeking behavior.  
@@ -36,7 +36,7 @@ Demographic information was taken from the baseline survey. Some participants we
 
 Of the available covariates, only `SINCEHIV`, time since HIV diagnosis, and `Age` are continuous. Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. As the purpose of this analysis is not to assess the effect of demographic variables, reference categories will not be reported. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Employment status was not detailed.  
 
-Gender was reduced to male, female, and other categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBGTQ or non-LGBTQ. 
+Gender was reduced to male, female, and 'other' categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBGTQ or non-LGBTQ. 
 
 Participants who indicated latino were marked as latino, and the rest were broken into different race categories. Categories were created for black non-latinos, white non-latinos, and others.  
 
@@ -227,9 +227,18 @@ plotCorr <- ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
   facet_grid(~HealthInfo) +
   labs(y = "Time Since HIV Diagnosis (yr)", x = "Age (yr)",
        title = "Age Against Time Since Diagnosis, Separated by Outcome")
+
 corAgeSinceHIV <- cor(x[, 2:3])[1, 2]
+table2 <- tibble(Parameter = colnames(x), 
+                 alpha = paste0("alpha[", 1:13, "]"),
+                 Mean = c("0", "-1", "1", "1", "1", "1", 
+                          "0", "0", "0", "1", "1", "1", "0"),
+                 SD = rep(1, 13))
+
 ```
 
+### Models
+Three models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age was found to be correlated with `SINCEHIV`, ($\rho = $`r corAgeSinceHIV`), a second model with `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The last model did not include `Age` or random effects. Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. See Table 2 for prior normal distribution parameters.  
 ```{r model1}
 cat(
 "model{
@@ -240,19 +249,19 @@ cat(
   for (j in 1:N.sites) {
     beta[j] ~ dnorm(0, tau)
   }
-  alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(-1, 1)
-  alpha[3] ~ dnorm(1, 1)
-  alpha[4] ~ dnorm(1, 1)
-  alpha[5] ~ dnorm(1, 1)
-  alpha[6] ~ dnorm(1, 1)
-  alpha[7] ~ dnorm(0, 1)
-  alpha[8] ~ dnorm(0, 1)
-  alpha[9] ~ dnorm(0, 1)
-  alpha[10] ~ dnorm(1, 1)
-  alpha[11] ~ dnorm(1, 1)
-  alpha[12] ~ dnorm(1, 1)
-  alpha[13] ~ dnorm(0, 1)
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
+  alpha[13] ~ dnorm(mu[13], tau.a)
   tau ~ dgamma(b1, b2)
   sigma <- 1/ tau
 }",
@@ -270,18 +279,18 @@ cat(
   for (j in 1:N.sites) {
     beta[j] ~ dnorm(0, tau)
   }
-  alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(-1, 1)
-  alpha[3] ~ dnorm(1, 1)
-  alpha[4] ~ dnorm(1, 1)
-  alpha[5] ~ dnorm(1, 1)
-  alpha[6] ~ dnorm(0, 1)
-  alpha[7] ~ dnorm(0, 1)
-  alpha[8] ~ dnorm(0, 1)
-  alpha[9] ~ dnorm(1, 1)
-  alpha[10] ~ dnorm(1, 1)
-  alpha[11] ~ dnorm(1, 1)
-  alpha[12] ~ dnorm(0, 1)
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
   tau ~ dgamma(b1, b2)
   sigma <- 1/ tau
 }",
@@ -296,19 +305,18 @@ cat(
 		y[i] ~ dbern(pie[i])
     logit(pie[i]) <- inprod(x[i, ], alpha[])
   }
-  alpha[1] ~ dnorm(0, 1)
-  alpha[2] ~ dnorm(-1, 1)
-  alpha[3] ~ dnorm(1, 1)
-  alpha[4] ~ dnorm(1, 1)
-  alpha[5] ~ dnorm(1, 1)
-  alpha[6] ~ dnorm(1, 1)
-  alpha[7] ~ dnorm(0, 1)
-  alpha[8] ~ dnorm(0, 1)
-  alpha[9] ~ dnorm(0, 1)
-  alpha[10] ~ dnorm(1, 1)
-  alpha[11] ~ dnorm(1, 1)
-  alpha[12] ~ dnorm(1, 1)
-  alpha[13] ~ dnorm(0, 1)
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
   tau ~ dgamma(b1, b2)
   sigma <- 1/ tau
 }",
@@ -334,6 +342,8 @@ priorDataMod1 = list(N.obs = nrow(acasi3),
                      site = acasi3$Site,
                      b1 = 0.25, 
                      b2 = 0.25,
+                     mu = table2$Mean,
+                     tau.a = 1,
                      y = y, 
                      x = x)
 proc.time()
@@ -343,6 +353,7 @@ runMod1 = jags(priorDataMod1, initsMod1, parameters,
 proc.time()
 burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
                       burnin = 100, n.thin = 8)
+dicMod1 <- runMod1$BUGSoutput$DIC
 ```
 
 ```{r runMod2, eval = FALSE}
@@ -361,6 +372,8 @@ priorDataMod2 = list(N.obs = nrow(acasi3),
                      site = acasi3$Site,
                      b1 = 0.25, 
                      b2 = 0.25,
+                     mu = table2$Mean[-3],
+                     tau.a = 1,
                      y = y, 
                      x = x[, -3])
 proc.time()
@@ -370,13 +383,14 @@ runMod2 = jags(priorDataMod2, initsMod2, parameters,
 proc.time()
 burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array, 
                       burnin = 100, n.thin = 8)
+dicMod2 <- runMod2$BUGSoutput$DIC
 ```
 
 ```{r runMod3, eval = FALSE}
 initsMod3 <- rep(
   list(
     list(
-      alpha = rep(0, 13),  
+      alpha = rep(0, 12),  
       tau   = 1)
   ),
   5
@@ -385,8 +399,10 @@ initsMod3 <- rep(
 priorDataMod3 = list(N.obs = nrow(acasi3), 
                      b1 = 0.25, 
                      b2 = 0.25,
+                     mu = table2$Mean[-3],
+                     tau.a = 1,
                      y = y, 
-                     x = x)
+                     x = x[, -3])
 proc.time()
 runMod3 = jags(priorDataMod3, initsMod3, parameters, 
                "model3_logit_fixed.txt", 
@@ -394,6 +410,7 @@ runMod3 = jags(priorDataMod3, initsMod3, parameters,
 proc.time()
 burnMod3 <- AddBurnin(runMod3$BUGSoutput$sims.array, 
                       burnin = 100, n.thin = 8)
+dicMod3 <- runMod3$BUGSoutput$DIC
 ```
 
 ```{r jagsPlots}
@@ -424,9 +441,6 @@ plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
 par(mfrow = c(3, 2))
 plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
 plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
-# dicMod1 <- runMod1$BUGSoutput$DIC
-# dicMod2 <- runMod2$BUGSoutput$DIC
-# dicMod3 <- runMod3$BUGSoutput$DIC
 ```
 
 ```{r diagnostics}
@@ -510,7 +524,7 @@ ggplot(postMod2 %>%
 ```
 
 ```{r summaryTable, include = TRUE}
-kable(table1, caption = "Figure 1. Participant Characteristics") %>%
+kable(table1, caption = "Table 1. Participant Characteristics") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
                 full_width = FALSE) %>%
   group_rows("Continuous Variables, Mean (SD)", 2, 3) %>%
@@ -519,5 +533,9 @@ kable(table1, caption = "Figure 1. Participant Characteristics") %>%
   group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
   group_rows("Education, Number (%) of Participants", 13, 14) %>%
   group_rows("Employment Status, Number (%) of Participants", 15, 19)
+
+kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
 ```
 
