@@ -23,6 +23,29 @@ load("models_1_2_3.RData")
 ## Abstract  
 This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for as age, race, gender, sexual orientation, education, and employment status. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be measured using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
 
+## Introduction  
+Investigators are interested in health-information seeking behavior in order to better adapt interventions geared toward HIV positive youth. The purpose of the survey is ultimately to determine factors that encourage participants to take an active role in their health care. This analysis will determine if one such factor, time since HIV diagnosis, has an effect on health-seeking behavior.  
+
+## Methods  
+### Data  
+Data comes from the Health Resources and Services Administration's Special Projects of National Significance Initiative, Use of Social Media to Improve Engagement, Retention, and Health Outcomes along the HIV Care Continuum. Participant and site identifying information have been removed. Participants were HIV positive youth and young adults (ages 16-34), and data were self-reported by participants between 2016 and 2018. Sites are located in major cities, distributed across the United States. Participants at sites have different demographic makeup, and while these demographics will be controlled for, it is thought that there may be correlation among participants within site. Data consists of a baseline survey taken upon entrance into the study, and a 6-month follow-up.  
+
+The outcome, `HealthInfo` is a binary variable, indicating whether a participant has reported looking for health-related information online. There are multiple types of health information that participants may report searching for, including cold/flu symptoms, transgender therapies, and STD information. If participants responded affirmatively to any of these, `HealthInfo` is recorded as a 1, otherwise a 0. Since these questions are asked in the 6-month follow-up, participants that were lost to follow-up are not included in this analysis. Ideally, $\chi^2$ testing would be performed between those participants included and those lost to follow-up, but those lost to follow-up were not included in the data set.  
+
+Demographic information was taken from the baseline survey. Some participants were given only a 6-month survey and no baseline survey, thus they were not included in the data set.  
+
+Of the available covariates, only `SINCEHIV`, time since HIV diagnosis, and `Age` are continuous. Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. As the purpose of this analysis is not to assess the effect of demographic variables, reference categories will not be reported. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Employment status was not detailed.  
+
+Gender was reduced to male, female, and other categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBGTQ or non-LGBTQ. 
+
+Participants who indicated latino were marked as latino, and the rest were broken into different race categories. Categories were created for black non-latinos, white non-latinos, and others.  
+
+Education was reduced to high school or high school equivalent or less, and more than a high school education.  
+
+The employment status question of the survey allowed participants to check all that apply, including: student, full-time or part-time employed, on disability, unemployed and looking for work, or unemployed and not looking. In order to code employment in dummy variables, these were collapsed into fewer categories and the different combinations were evaluated, with the most infrequent collapsed into an other category. The remaining categories include student, employed, disabled, and unemployed. Student includes employed and unemployed students. Other combinations were rare.  
+
+Demographic information of participants is summarized in Table 1. There are 686 participants included in the analysis, of which 627 are LGBTQ, 498 are men, 167 women, 197 are Latino, 329 are black (not Latino), and 116 are white (not Latino). Approximately half had more than high school educations, 294 are employed, and 254 are unemployed. Number of each who sought out health information online is also documented in Table 1. 
+
 ```{r data, eval = FALSE}
 acasi3 <- acasi2 %>%
   filter(!is.na(SCREEN1)) %>%
@@ -177,7 +200,11 @@ table1 <- bind_rows(
     mutate(`Sample Frequency` = paste0(`Sample Frequency`, ")")),
   tab1_OneFactor(demo, varString = LGBTQ),
   tab1_OneFactor(demo, varString = GENDER_RC),
-  tab1_OneFactor(demo, varString = RACE_RC),
+  tab1_OneFactor(demo, varString = RACE_RC) %>%
+    mutate(Variable = fct_relevel(factor(Variable, levels = unique(Variable)),
+                                  "Latino")) %>%
+    arrange(Variable) %>%
+    mutate(Variable = as.character(Variable)),
   tab1_OneFactor(demo, varString = GRADE_RC),
   tab1_OneFactor(demo, varString = EMPLOY)
 )
@@ -482,9 +509,15 @@ ggplot(postMod2 %>%
        title = "Time Since HIV Regression Coefficient Distributions")
 ```
 
-```{r summaryTable}
-kable(table1) %>%
+```{r summaryTable, include = TRUE}
+kable(table1, caption = "Figure 1. Participant Characteristics") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
-                full_width = FALSE)
+                full_width = FALSE) %>%
+  group_rows("Continuous Variables, Mean (SD)", 2, 3) %>%
+  group_rows("LGBTQ Status, Number (%) of Participants", 4, 5) %>%
+  group_rows("Gender, Number (%) of Participants", 6, 8) %>%
+  group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
+  group_rows("Education, Number (%) of Participants", 13, 14) %>%
+  group_rows("Employment Status, Number (%) of Participants", 15, 19)
 ```
 
