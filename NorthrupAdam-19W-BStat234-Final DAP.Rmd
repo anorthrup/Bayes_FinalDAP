@@ -252,10 +252,14 @@ $$
 
 Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Effects of education and employment status were not detailed. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, given newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
 
-The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to initiating model 3. Sensitivity analysis included increasing iterations and thinning. Poor convergence may also necessitate changing precision levels for random effects.  
+The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to initiating model 3. Sensitivity analysis included increasing iterations and thinning. Poor convergence may also necessitate changing precision levels for random effects. Once a model is selected, linearity will be assessed and any necessary transformations will be made. The effects of `SINCEHIV` will then be determined.  
 
 ## Results  
-Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, but because autocorrelation was still relatively high, iterations were increased to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. All three models were run and compared with 8100 iterations. Figure 1 shows autocorrelation and convergence of random effects $\sigma_b$ for all three models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 2 are shown (Figures 2 and 3).  
+Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, but because autocorrelation was still relatively high, iterations were increased to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. All three models were run and compared with 8100 iterations. Figure 1 shows autocorrelation and convergence of random effects $\sigma_b$ for all three models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 2 are shown (Figures 2 and 3). Autocorrelation is lower for Model 3, though convergence is poor. Autocorrelation is slightly higher for Models 1 and 2, but convergence is good. Model 1 convergence has slightly higher spikes, and slightly higher DIC (Table 3), so Model 2 appears to be the best-performing.  Convergence for $\alpha$ in Figure 3 is good for covariates.  
+
+Model 2 was assessed linearity in its continuous variable, `SINCEHIV`. Figure 4 shows `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoother for each. The LOESS curve for $\pi_i$ is relatively straight, showing that the model is linear in `SINCEHIV`. The curves are also relatively similar, showing good model fit.  
+
+The log odds ratio for time since diagnosis on whether a participant sought health information online is seen in Table 4 as -0.06. Table 4 also includes the log odds ratios for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution is also listed.  
 
 ## Appendix
 
@@ -457,38 +461,43 @@ kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
 ```
 
 ```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 1. Autocorrelation and Convergence of Sigmas"}
-plotACF <- function (burn, n, name, model = NULL, lag.max = NULL) {
-  for(i in 1:length(name)) {
-    acf(burn$Burnin.sims.matrix[1:n, name[1]], lag.max = lag.max, 
+plotACF <- function (burn, n, parameter, name = parameter, 
+                     model = NULL, lag.max = NULL) {
+  for(i in 1:length(parameter)) {
+    acf(burn$Burnin.sims.matrix[1:n, parameter[1]], lag.max = lag.max, 
         main = paste(model, name[i]))
   }
 }
-plotTime <- function (burn, n, name, model = NULL, ylim = NULL) {
-  for(i in 1:length(name)) {
-    plot(1:n, burn$Burnin.sims.matrix[1:n, name[1]], type = "l", 
-         main = paste(model, name[i]), ylab = name[i], xlab = "Iteration",
+plotTime <- function (burn, n, parameter, name = parameter, model = NULL, ylim = NULL) {
+  for(i in 1:length(parameter)) {
+    plot(1:n, burn$Burnin.sims.matrix[1:n, parameter[1]], type = "l", 
+         main = paste(model, name[i]), ylab = parameter[i], xlab = "Iteration",
          ylim = ylim)
   }
 }
 par(mfrow = c(2, 3))
-plotACF(burnMod1, n = 1000, "sigma", "Model 1")
-plotACF(burnMod2, n = 1000, "sigma", "Model 2")
-plotACF(burnMod3, n = 1000, "sigma", "Model 3")
-plotTime(burnMod1, n = 1000, "sigma", "Model 1", ylim = c(0, 3))
-plotTime(burnMod2, n = 1000, "sigma", "Model 2", ylim = c(0, 3))
-plotTime(burnMod3, n = 1000, "sigma", "Model 3", ylim = c(0, 3))
+plotACF(burnMod1, n = 1000, parameter = "sigma", model = "Model 1")
+plotACF(burnMod2, n = 1000, parameter = "sigma", model = "Model 2")
+plotACF(burnMod3, n = 1000, parameter = "sigma", model = "Model 3")
+plotTime(burnMod1, n = 1000, parameter = "sigma", model = "Model 1", ylim = c(0, 3))
+plotTime(burnMod2, n = 1000, parameter = "sigma", model = "Model 2", ylim = c(0, 3))
+plotTime(burnMod3, n = 1000, parameter = "sigma", model = "Model 3", ylim = c(0, 3))
 ```
 
 ```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 2. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
 par(mfrow = c(2, 3))
-plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
-plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
+        table2$Parameter[c(1, 2, 4:7)], "Model 2")
+plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), 
+        table2$Parameter[8:13], "Model 2")
 ```
 
 ```{r jagsPlotsAlpha2, include = TRUE, fig.cap = "Figure 3. Autocorrelation and Convergence of Model 2 Alphas 7-12"}
 par(mfrow = c(3, 2))
-plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
-plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
+         table2$Parameter[c(1, 2, 4:7)], "Model 2")
+plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), 
+         table2$Parameter[8:13], "Model 2")
 ```
 
 ```{r dicTable, include = TRUE}
@@ -501,11 +510,22 @@ kable(tibble(Model = c("Model 1", "Model 2", "Model 3"),
 
 ```
 
-```{r diagnostics}
-sumMod2 <- burnMod2$Burnin.Summary %>%
+```{r diagnostics, include = TRUE, fig.cap = "Figure 4. Linear Model Diagnostics"}
+sumMod2 <- burnMod2$Burnin.sims.matrix %>%
   as.data.frame() %>%
-  rownames_to_column("Parameter") %>%
-  setNames(c("Parameter", "Mean", "SD", "2.5%", "97.5%", "P>0"))
+  gather("Parameter", "Value") %>%
+  group_by(Parameter) %>%
+  summarize(Mean = mean(Value),
+            SD = sd(Value),
+            `2.5%` = quantile(Value, 0.025),
+            `97.5%` = quantile(Value, 0.975),
+            `P>0` = length(which(Value > 0)) / length(Value),
+            `P<0` = length(which(Value < 0)) / length(Value)) %>%
+  mutate(Name = str_replace(Parameter, "(.*)(\\[.*)", "\\1"),
+         Number = as.numeric(str_replace(Parameter, 
+                                         "(.*\\[)(\\d+)(\\])", "\\2"))) %>%
+  arrange(Name, Number) %>%
+  select(-Name, -Number)
 alphaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "alpha")]
 betaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "beta")]
 piMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "pie")]
@@ -525,6 +545,16 @@ ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
        x = "Time Since HIV (yr)") +
   scale_color_manual(name = 'Y Axis', 
          values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info'))
+```
+
+```{r results, include = TRUE}
+kable(sumMod2 %>%
+        filter(str_detect(Parameter, "alpha|sigma")) %>%
+        mutate(Covariate = c(table2$Parameter[-3], "Site")) %>%
+        select(Covariate, everything()),
+      digits = 2, caption = "Table 4. Model Estimates") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
 ```
 
 ```{r plotPosterior}
