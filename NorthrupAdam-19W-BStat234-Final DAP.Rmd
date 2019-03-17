@@ -19,7 +19,7 @@ theme_set(theme_bw())
 load("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Labs/AddBurnin.RData")
 load("models_1_2_3.RData")
 ```
-
+<div style="line-height: 2em;">
 ## Abstract  
 This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for as age, race, gender, sexual orientation, education, and employment status. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be measured using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each each site may be correlated, and so a site-specific effect will be considered.  
 
@@ -34,7 +34,7 @@ The outcome, `HealthInfo` is a binary variable, indicating whether a participant
 
 Demographic information was taken from the baseline survey. Some participants were given only a 6-month survey and no baseline survey, thus they were not included in the data set.  
 
-Of the available covariates, only `SINCEHIV`, time since HIV diagnosis, and `Age` are continuous. Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. As the purpose of this analysis is not to assess the effect of demographic variables, reference categories will not be reported. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Employment status was not detailed.  
+Of the available covariates, only `SINCEHIV`, time since HIV diagnosis, and `Age` are continuous. Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. 
 
 Gender was reduced to male, female, and 'other' categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBGTQ or non-LGBTQ. 
 
@@ -238,8 +238,20 @@ table2 <- tibble(Parameter = colnames(x),
 ```
 
 ### Models
-Three models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age was found to be correlated with `SINCEHIV`, ($\rho = $`r corAgeSinceHIV`), a second model with `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The last model did not include `Age` or random effects. Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. See Table 2 for prior normal distribution parameters.  
-```{r model1}
+Three models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The last model did not include `Age` or random effects. The third model will include `Age` if the first model is shown to outperform the second model without `Age`.  
+
+Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Effects of education and employment status were not detailed. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, given newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
+
+The model that best converges and possibly with the lowest DIC will be the one selected. Initial runs will have 1100 iterations with 100 burnin and thinning of 1. These tuning parameters will be increased if there is high autocorrelation or poor convergence.  
+
+## Results  
+
+
+## Appendix
+
+### Model 1  
+This model includes 13 covariates including `Age`, with regression coefficients (alpha), and random effects (beta).  
+```{r model1, echo = TRUE, include = TRUE}
 cat(
 "model{
   for (i in 1:N.obs) {
@@ -269,7 +281,9 @@ cat(
 	file = "model1_logit_mixed.txt")
 ```
 
-```{r model2}
+### Model 2  
+This model does not include `Age`, indicated by 12 regression coefficients (alpha). This model includes random effects for `Site` (beta).  
+```{r model2, echo = TRUE, include = TRUE}
 cat(
 "model{
   for (i in 1:N.obs) {
@@ -298,7 +312,9 @@ cat(
 	file = "model2_logit_mixed.txt")
 ```
 
-```{r model3}
+### Model 3  
+This model does not include `Age` (see only 12 alphas) or random effects.  
+```{r model3, echo = TRUE, include = TRUE}
 cat(
 "model{
   for (i in 1:N.obs) {
@@ -483,7 +499,8 @@ likeliMod <- lm(HealthInfo ~ SINCEHIV + Gender_Woman + Gender_Other +
 likeliMeans <- likeliMod$coefficients
 likeliSDs <- summary(likeliMod)$coefficients[, "Std. Error"]
 for (i in 1:length(priorMeans)) {
-  priorX[(40435*i - 40434):(40435*i)] <- rnorm(40435, priorMeans[i], 1)
+  priorX[(40435*i - 40434):(40435*i)] <- 
+    rnorm(40435, as.numeric(priorMeans[i]), 1)
   likeliX[(40435*i - 40434):(40435*i)] <- rnorm(40435, 
                                                 likeliMeans[i],
                                                 likeliSDs[i])
@@ -522,7 +539,7 @@ ggplot(postMod2 %>%
   labs(y = "Density", x = "Time Since HIV Coefficient",
        title = "Time Since HIV Regression Coefficient Distributions")
 ```
-
+</div>
 ```{r summaryTable, include = TRUE}
 kable(table1, caption = "Table 1. Participant Characteristics") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
@@ -538,4 +555,3 @@ kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
                 full_width = FALSE)
 ```
-
