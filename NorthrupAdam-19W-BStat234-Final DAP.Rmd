@@ -459,19 +459,27 @@ postMod2 <- burnMod2$Burnin.sims.matrix %>%
          Likelihood = likeliX)
 ggplot(postMod2 %>%
          filter(Key == "SINCEHIV"),
-       aes(x = Posterior, color = "posterior")) +
+       aes(x = Posterior, fill = "posterior")) +
   geom_density() +
-  geom_density(aes(x = Prior, color = "prior")) +
-  geom_density(aes(x = Likelihood, color = "likeli")) +
+  geom_density(aes(x = Prior, fill = "prior")) +
+  geom_density(aes(x = Likelihood, fill = "likeli")) +
   scale_x_continuous(limits = c(-2, 0.1)) +
-  scale_y_continuous(limits = c(0, 20)) +
-  scale_color_manual(name = "Distribution",
-                     values = c("likeli" = "red",
-                                "posterior" = "purple", 
-                                "prior" = "blue"),                     
+  # scale_y_continuous(limits = c(0, 20)) +
+  scale_fill_manual(name = "Distribution",
+                     values = c("likeli" = "blue",
+                                "posterior" = "green", 
+                                "prior" = "red"),                     
                      labels = c("Likelihood", "Posterior", "Prior")) +
-  labs(y = "Density", x = "Time Since HIV Coefficient")
-
+  labs(y = "Density", x = "Time Since HIV Coefficient",
+       title = "Time Since HIV Regression Coefficient Distributions")
+ggplot(postMod2 %>%
+         filter(Key == "SINCEHIV") %>%
+         gather("Distribution", "Data", -Key),
+       aes(x = Data, fill = Distribution)) +
+  facet_grid(.~Distribution, scales = "free") +
+  geom_density() +
+  labs(y = "Density", x = "Time Since HIV Coefficient",
+       title = "Time Since HIV Regression Coefficient Distributions")
 ```
 
 ```{r summaryTable}
