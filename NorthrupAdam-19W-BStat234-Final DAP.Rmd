@@ -470,7 +470,7 @@ ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
 ```
 
 ```{r plotPosterior}
-priorMeans <- c(0, -1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0)
+priorMeans <- table2$Mean[-3]
 priorX <- double(485220)
 likeliX <- double(485220)
 likeliMod <- lm(HealthInfo ~ SINCEHIV + Gender_Woman + Gender_Other +
