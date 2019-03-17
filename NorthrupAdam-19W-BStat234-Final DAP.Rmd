@@ -238,14 +238,24 @@ table2 <- tibble(Parameter = colnames(x),
 ```
 
 ### Models
-Three models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The last model did not include `Age` or random effects. The third model will include `Age` if the first model is shown to outperform the second model without `Age`.  
+Three models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The last model did not include `Age` or random effects. The third model will include `Age` if the first model is shown to outperform the second model without `Age`. Models followed the general form:  
+$$
+Y_i \sim Bernoulli(\pi_i) \\
+log \frac{\pi_i}{1 - \pi_i} = x_i^T\alpha + \beta_{j} 
+$$
+with the following distributions:  
+$$
+\beta_j ~ Norm_o(0, \tau_b) \\
+\tau_b ~ Gamma(0.25, 0.25) \\
+\alpha_k ~ Norm(\mu_k, 1)
+$$
 
 Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Effects of education and employment status were not detailed. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, given newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
 
-The model that best converges and possibly with the lowest DIC will be the one selected. Initial runs will have 1100 iterations with 100 burnin and thinning of 1. These tuning parameters will be increased if there is high autocorrelation or poor convergence.  
+The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to initiating model 3. Sensitivity analysis included increasing iterations and thinning. Poor convergence may also necessitate changing precision levels for random effects.  
 
 ## Results  
-
+Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, but because autocorrelation was still relatively high, iterations were increased to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. All three models were run and compared with 8100 iterations. Figure 1 shows autocorrelation and convergence of random effects $\sigma_b$ for all three models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 2 are shown (Figures 2 and 3).  
 
 ## Appendix
 
@@ -429,7 +439,24 @@ burnMod3 <- AddBurnin(runMod3$BUGSoutput$sims.array,
 dicMod3 <- runMod3$BUGSoutput$DIC
 ```
 
-```{r jagsPlots}
+</div>
+```{r summaryTable, include = TRUE}
+kable(table1, caption = "Table 1. Participant Characteristics") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE) %>%
+  group_rows("Continuous Variables, Mean (SD)", 2, 3) %>%
+  group_rows("LGBTQ Status, Number (%) of Participants", 4, 5) %>%
+  group_rows("Gender, Number (%) of Participants", 6, 8) %>%
+  group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
+  group_rows("Education, Number (%) of Participants", 13, 14) %>%
+  group_rows("Employment Status, Number (%) of Participants", 15, 19)
+
+kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+```
+
+```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 1. Autocorrelation and Convergence of Sigmas"}
 plotACF <- function (burn, n, name, model = NULL, lag.max = NULL) {
   for(i in 1:length(name)) {
     acf(burn$Burnin.sims.matrix[1:n, name[1]], lag.max = lag.max, 
@@ -450,13 +477,28 @@ plotACF(burnMod3, n = 1000, "sigma", "Model 3")
 plotTime(burnMod1, n = 1000, "sigma", "Model 1", ylim = c(0, 3))
 plotTime(burnMod2, n = 1000, "sigma", "Model 2", ylim = c(0, 3))
 plotTime(burnMod3, n = 1000, "sigma", "Model 3", ylim = c(0, 3))
+```
 
+```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 2. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
 par(mfrow = c(2, 3))
 plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
 plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+```
+
+```{r jagsPlotsAlpha2, include = TRUE, fig.cap = "Figure 3. Autocorrelation and Convergence of Model 2 Alphas 7-12"}
 par(mfrow = c(3, 2))
 plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), "Model 2")
 plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), "Model 2")
+```
+
+```{r dicTable, include = TRUE}
+kable(tibble(Model = c("Model 1", "Model 2", "Model 3"),
+             DIC = c(dicMod1, dicMod2, dicMod3)), 
+      digits = 1,
+      caption = "Table 3. Model DIC") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+
 ```
 
 ```{r diagnostics}
@@ -539,19 +581,4 @@ ggplot(postMod2 %>%
   labs(y = "Density", x = "Time Since HIV Coefficient",
        title = "Time Since HIV Regression Coefficient Distributions")
 ```
-</div>
-```{r summaryTable, include = TRUE}
-kable(table1, caption = "Table 1. Participant Characteristics") %>%
-  kable_styling(bootstrap_options = c("striped", "condensed"),
-                full_width = FALSE) %>%
-  group_rows("Continuous Variables, Mean (SD)", 2, 3) %>%
-  group_rows("LGBTQ Status, Number (%) of Participants", 4, 5) %>%
-  group_rows("Gender, Number (%) of Participants", 6, 8) %>%
-  group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
-  group_rows("Education, Number (%) of Participants", 13, 14) %>%
-  group_rows("Employment Status, Number (%) of Participants", 15, 19)
 
-kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
-  kable_styling(bootstrap_options = c("striped", "condensed"),
-                full_width = FALSE)
-```
