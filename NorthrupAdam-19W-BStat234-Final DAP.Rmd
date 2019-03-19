@@ -263,13 +263,13 @@ The model that best converged and had the lowest DIC was selected. Initial itera
 ## Results  
 Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were compared. Figure 3 shows autocorrelation and convergence of random effects $\sigma_b$ for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 4 and 5). Autocorrelation is lower for Model 3, though convergence is poor, by orders of magnitude. Autocorrelation is similar and slightly higher for Models 1, 2, and 3, but convergence is good. Models 1, 2, and 3 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3), so Model 4 appears to be the best-performing. Convergence for $\alpha$ in Figure 5 is good for all covariates.  
 
-Model 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoothers for each. The curves are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. The differences in the middle (near 11 years) may also be due to the upward tail of the LOESS curve on `HealthInfo` at high values. The differences in the two curves at values of `SINCEHIV` under 5 years lend possible evidence against the fit of the model. Generally the probability of seeking health information, $\pi$, is high for lower times since HIV diagnosis, and the same is true for number of participants seeking health information, y. However, $\pi$ is higher than y at 1 year according to the LOESS curve. The slight dip in both curves at 4 years also takes away from the linearity of the model for this covariate. Model 4 was created in order to account for these differences in LOESS curves. Model 4 has similar curves, but with slightly closer tails on the low end of `SINCEHIV`. These differences should still be noted as a potential limitation of the model.  
+Model 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoothers for each. The curves are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. The differences in the middle (near 11 years) may also be due to the upward tail of the LOESS curve on `HealthInfo` at high values. The differences in the two curves at values of `SINCEHIV` under 5 years lend possible evidence against the fit of the model. The difference in tails at the lower end of `SINCEHIV` may be evidence of an imperfect fit. Model 4 was created in order to account for these differences in LOESS curves. Model 4 has similar curves, but with slightly closer tails on the low end of `SINCEHIV`. Model 4 has a better if still not perfect fit.  
 
 The $\alpha$ coefficient for time since diagnosis (`SINCEHIV`) on whether a participant sought health information online is seen in Table 4 as -0.40. Table 4 also includes the coefficients for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution is also listed.  
 
 ## Conclusions  
-
-
+Table 4 shows that the 2.5th percentile and 97.5th percentile for the regression coefficient of time since HIV diagnosis (`SINCEHIV`) are both below zero, indicating that there is indeed an effect on health-seeking behavior. This is reinforced by the fact that all estimates are below zero, and thus the probability of the $\alpha$ for `SINCEHIV` being below zero is 1.00. This indicates that for each increase in year since HIV diagnosis, the odds of seeking health information online is reduced by `r round(1 - exp(-.40), 2)`. Figure 7 shows the prior, likelihood, and posterior distributions, together and separated due to the extreme differences in scale.  
+ 
 ## Appendix
 ### Model 1  
 This model includes 13 covariates including `Age`, with regression coefficients (alpha), and random effects (beta).  
@@ -634,7 +634,7 @@ kable(sumMod4 %>%
                 full_width = FALSE)
 ```
 
-```{r plotPosterior, include = TRUE, fig.cap = "Figure "}
+```{r plotPosterior, include = TRUE, fig.cap = "Figure 7. SINCEHIV Distributions"}
 priorMeans <- table2$Mean[-3]
 priorX <- double(304800)
 likeliX <- double(304800)
@@ -678,7 +678,7 @@ ggplot(postMod4 %>%
                                 "prior" = "blue"),                     
                      labels = c("Likelihood", "Posterior", "Prior")) +
   labs(y = "Density", x = "Time Since HIV Coefficient",
-       title = "Time Since HIV Regression Coefficient Distributions")
+       title = "Time Since HIV Distributions, Together")
 ggplot(postMod4 %>%
          filter(Key == "SINCEHIV") %>%
          gather("Distribution", "Data", -Key),
@@ -686,6 +686,6 @@ ggplot(postMod4 %>%
   facet_grid(.~Distribution, scales = "free") +
   geom_density() +
   labs(y = "Density", x = "Time Since HIV Coefficient",
-       title = "Time Since HIV Regression Coefficient Distributions")
+       title = "Time Since HIV Distributions, Separated")
 ```
 
