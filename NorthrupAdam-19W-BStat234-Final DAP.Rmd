@@ -21,16 +21,16 @@ load("model_all.RData")
 ```
 <div style="line-height: 2em;">
 ## Abstract  
-This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for as age, race, gender, sexual orientation, education, and employment status. The event of interest, y, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be measured using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each each site may be correlated, and so a site-specific effect will be considered.  
+This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for age, race, gender, sexual orientation, education, and employment status. The event of interest, `HealthInfo`, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be estimated using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
 
 ## Introduction  
 Investigators are interested in health-information seeking behavior in order to better adapt interventions geared toward HIV positive youth. The purpose of the survey is ultimately to determine factors that encourage participants to take an active role in their health care. This analysis will determine if one such factor, time since HIV diagnosis, has an effect on health-seeking behavior.  
 
 ## Methods  
 ### Data  
-Data comes from the Health Resources and Services Administration's Special Projects of National Significance Initiative, Use of Social Media to Improve Engagement, Retention, and Health Outcomes along the HIV Care Continuum. Participant and site identifying information have been removed. Participants were HIV positive youth and young adults (ages 16-34), and data were self-reported by participants between 2016 and 2018. Sites are located in major cities, distributed across the United States. Participants at sites have different demographic makeup, and while these demographics will be controlled for, it is thought that there may be correlation among participants within site. Data consists of a baseline survey taken upon entrance into the study, and a 6-month follow-up.  
+Data comes from the Health Resources and Services Administration's Special Projects of National Significance Initiative: Use of Social Media to Improve Engagement, Retention, and Health Outcomes along the HIV Care Continuum. Participant and site identifying information have been removed. Participants were HIV positive youth and young adults (ages 16-34), and data were self-reported by participants between 2016 and 2018. Sites are located in major cities, distributed across the United States. Participants at sites have different demographic makeup, and while these demographics will be controlled for, it is thought that there may be correlation for outcomes among participants within site. Data consist of a baseline survey taken upon entrance into the study, and a 6-month follow-up.  
 
-The outcome, `HealthInfo` is a binary variable, indicating whether a participant has reported looking for health-related information online. There are multiple types of health information that participants may report searching for, including cold/flu symptoms, transgender therapies, and STD information. If participants responded affirmatively to any of these, `HealthInfo` is recorded as a 1, otherwise a 0. Since these questions are asked in the 6-month follow-up, participants that were lost to follow-up are not included in this analysis. Ideally, $\chi^2$ testing would be performed between those participants included and those lost to follow-up, but those lost to follow-up were not included in the data set.  
+`HealthInfo` is a binary variable, indicating whether a participant has reported looking for health-related information online. There are multiple types of health information that participants may report searching for, including cold/flu symptoms, transgender therapies, and STD information. If participants responded affirmatively to any of these, `HealthInfo` is recorded as a 1, otherwise a 0. Since these questions are asked in the 6-month follow-up, participants that were lost to follow-up are not included in this analysis. Ideally, $\chi^2$ testing would be performed between those participants included and those lost to follow-up, but those lost to follow-up were not included in the data set.  
 
 Demographic information was taken from the baseline survey. Some participants were given only a 6-month survey and no baseline survey, thus they were not included in the data set.  
 
@@ -38,15 +38,15 @@ Of the available covariates, only `SINCEHIV` (time since HIV diagnosis), and `Ag
 
 Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. 
 
-Gender was reduced to male, female, and 'other' categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBGTQ or non-LGBTQ. 
+Gender was reduced to male, female, and 'other' categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBTQ or non-LGBTQ. 
 
-Participants who indicated latino were marked as latino, and the rest were broken into different race categories. Categories were created for black non-latinos, white non-latinos, and others.  
+Participants who indicated Latino were marked as Latino, and the rest were broken into different race categories. Categories were created for black non-Latinos, white non-Latinos, and others.  
 
 Education was reduced to high school or high school equivalent or less, and more than a high school education.  
 
-The employment status question of the survey allowed participants to check all that apply, including: student, full-time or part-time employed, on disability, unemployed and looking for work, or unemployed and not looking. In order to code employment in dummy variables, these were collapsed into fewer categories and the different combinations were evaluated, with the most infrequent collapsed into an other category. The remaining categories include student, employed, disabled, and unemployed. Student includes employed and unemployed students. Other combinations were rare.  
+The employment status question of the survey allowed participants to check all that apply, including: student, full-time or part-time employed, on disability, unemployed and looking for work, or unemployed and not looking. In order to code employment in dummy variables, these were collapsed into fewer categories and the different combinations were evaluated, with the most infrequent collapsed into an 'other' category. The remaining categories include student, employed, disabled, and unemployed. Student includes employed and unemployed students. Other combinations were rare.  
 
-Demographic information of participants is summarized in Table 1. There are 686 participants included in the analysis, of which 627 are LGBTQ, 498 are men, 167 women, 197 are Latino, 329 are black (not Latino), and 116 are white (not Latino). Approximately half had more than high school educations, 294 are employed, and 254 are unemployed. Number of each who sought out health information online is also documented in Table 1. 
+Demographic information of participants is summarized in Table 1. There are 686 participants included in the analysis, of which 627 are LGBTQ, 498 are men, 167 women, 197 are Latino, 329 are black (not Latino), and 116 are white (not Latino). Approximately half had more than high school educations, 294 are employed, and 254 are unemployed. The number from each group who sought out health information online is also documented in Table 1. 
 
 ```{r data, eval = FALSE}
 acasi3 <- acasi2 %>%
@@ -244,34 +244,38 @@ table2 <- tibble(Parameter = colnames(x),
 ```
 
 ### Models
-Four models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`, Figure 1), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The third model did not include `Age` or random effects. The third model would include `Age` if the first model is shown to outperform the second model without `Age`. The fourth model was similar to the second, except used the log of `SINCEHIV`. Models followed the general form:  
+Four models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`, Figure 1), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The third model did not include random effects, and would include `Age` if the first model is shown to outperform the second model without `Age`. The fourth model excluddes `Age`, and includes random effects, but used the log of `SINCEHIV`. Models followed the general form:  
 $$
 Y_i \sim Bernoulli(\pi_i) \\
 log \frac{\pi_i}{1 - \pi_i} = x_i^T\alpha + \beta_{j} 
 $$
 with the following distributions:  
 $$
-\beta_j ~ Norm_o(0, \tau_b) \\
-\tau_b ~ Gamma(0.25, 0.25) \\
-\alpha_k ~ Norm(\mu_k, 1)
+\beta_j \sim Norm_o(0, \tau_b) \\
+\tau_b \sim Gamma(0.25, 0.25) \\
+\alpha_k \sim Norm(\mu_k, 1)
 $$
 
-Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were generally estimated to be likely negative, zero, or positive, with means of -1, 0, or 1 and standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race. Effects of education and employment status were not detailed. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, given newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
+Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were estimated to be negative, zero, or positive, with means of -1, 0, or 1, respectively, with standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race on health-seeking behavior of teens and young adults. Effects of education and employment status were not detailed, priors for these were based on intuition instead. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, since newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, and for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
 
-The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to initiating model 3. Sensitivity analysis included increasing iterations and thinning. Poor convergence may also necessitate changing precision levels for random effects. Once a model is selected, linearity will be assessed and any necessary transformations will be made. The effects of `SINCEHIV` will then be determined.  
+The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to evaluation of later models. Sensitivity analysis included increasing iterations and thinning. Poor convergence may have also necessitated changing precision levels for random effects. Once a model was selected, linearity was assessed and any necessary transformations made (e.g. log of `SINCEHIV`). The effects of `SINCEHIV` were then determined.  
 
 ## Results  
-Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were compared. Figure 3 shows autocorrelation and convergence of random effects $\sigma_b$ for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 4 and 5). Autocorrelation is lower for Model 3, though convergence is poor, by orders of magnitude. Autocorrelation is similar and slightly higher for Models 1, 2, and 3, but convergence is good. Models 1, 2, and 3 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3), so Model 4 appears to be the best-performing. Convergence for $\alpha$ in Figure 5 is good for all covariates.  
+Models 1 and 2 had high autocorrelation and high spikes in time series plots with 1100 iterations. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were selected and compared. Figure 3 shows autocorrelation and convergence of random effects standard deviation, $\sigma_b$, for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 4 and 5). Autocorrelation is higher for Models 1, 2, and 4 than for Model 3, but convergence for Model 3 worse than the others by orders of magnitude. Models 1, 2, and 4 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3). Models 2 and 4 were compared for model fit as described below. Convergence is good for all $\alpha$, as shown in Figure 5.  
 
-Model 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoothers for each. The curves are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. The differences in the middle (near 11 years) may also be due to the upward tail of the LOESS curve on `HealthInfo` at high values. The differences in the two curves at values of `SINCEHIV` under 5 years lend possible evidence against the fit of the model. The difference in tails at the lower end of `SINCEHIV` may be evidence of an imperfect fit. Model 4 was created in order to account for these differences in LOESS curves. Model 4 has similar curves, but with slightly closer tails on the low end of `SINCEHIV`. Model 4 has a better if still not perfect fit.  
+Models 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ (`HealthInfo`) with LOESS smoothers for each. The curves for $\pi_i$ and $y_i$ are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. This upward tail may influence the difference in the middle (near 11 years) as well. The difference in tails at the lower end of `SINCEHIV` may be evidence of an imperfect fit. Model 4 was created in order to account for these differences in LOESS curves. The curves for Model 4 have shapes similar to those scene in Model 2, but with slightly closer tails on the low end of `SINCEHIV`, thus Model 4 has a better if still imperfect fit.  
 
-The $\alpha$ coefficient for time since diagnosis (`SINCEHIV`) on whether a participant sought health information online is seen in Table 4 as -0.40. Table 4 also includes the coefficients for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution is also listed.  
+The regression coefficient ($\alpha_2$) for time since diagnosis (`SINCEHIV`) on whether a participant sought health information online is seen in Table 4 as -0.40. Table 4 also includes the coefficients for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution, $\tau_b$, is also listed.  
 
 ## Conclusions  
-Table 4 shows that the 2.5th percentile and 97.5th percentile for the regression coefficient of time since HIV diagnosis (`SINCEHIV`) are both below zero, indicating that there is indeed an effect on health-seeking behavior. This is reinforced by the fact that all estimates are below zero, and thus the probability of the $\alpha$ for `SINCEHIV` being below zero is 1.00. This indicates that for each increase in year since HIV diagnosis, the odds of seeking health information online is reduced by `r round(1 - exp(-.40), 2)`. Figure 7 shows the prior, likelihood, and posterior distributions, together and separated due to the extreme differences in scale.  
- 
+Table 4 shows that the 2.5th percentile and 97.5th percentile for $\alpha_2$ are both below zero, indicating that there is indeed an effect on health-seeking behavior. This is reinforced by the fact that all estimates of $\alpha_2$ are below zero, and thus the probability of the $\alpha_2$ being below zero is approximately 1.00. This indicates that for each increase in year since HIV diagnosis, the odds of seeking health information online is reduced by `r round(1 - exp(-.40), 2)`. Figure 7 shows the prior, likelihood, and posterior distributions, together and separated due to the extreme differences in scale.  
+
+## References
+Rideout, Victoria, and Susannah Fox. "Digital Health Practices, Social Media Use, and Mental Well-Being Among Teens and Young Adults in the U.S." *Digital Health Practices, Social Media Use, and Mental Well-Being Among Teens and Young Adults in the U.S.*, Well Being Trust, wellbeingtrust.org/areas-of-focus/policy-and-advocacy/reports/digital-health-practices/.
+
 ## Appendix
-### Model 1  
+### Model Printouts
+#### Model 1  
 This model includes 13 covariates including `Age`, with regression coefficients (alpha), and random effects (beta).  
 ```{r model1, echo = TRUE, include = TRUE}
 cat(
@@ -303,7 +307,7 @@ cat(
 	file = "model1_logit_mixed.txt")
 ```
 
-### Model 2  
+#### Model 2  
 This model does not include `Age`, indicated by 12 regression coefficients (alpha). This model includes random effects for `Site` (beta).  
 ```{r model2, echo = TRUE, include = TRUE}
 cat(
@@ -334,7 +338,7 @@ cat(
 	file = "model2_logit_mixed.txt")
 ```
 
-### Model 3  
+#### Model 3  
 This model does not include `Age` (see only 12 alphas) or random effects.  
 ```{r model3, echo = TRUE, include = TRUE}
 cat(
@@ -475,6 +479,7 @@ dicMod4 <- runMod4.1$BUGSoutput$DIC
 ```
 
 </div>
+### Sample Summary
 ```{r summaryTable, include = TRUE}
 kable(table1, caption = "Table 1. Participant Characteristics") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
@@ -485,12 +490,16 @@ kable(table1, caption = "Table 1. Participant Characteristics") %>%
   group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
   group_rows("Education, Number (%) of Participants", 13, 14) %>%
   group_rows("Employment Status, Number (%) of Participants", 15, 19)
+```
 
+### Prior Distributions
+```{r priorTable, include = TRUE}
 kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
   kable_styling(bootstrap_options = c("striped", "condensed"),
                 full_width = FALSE)
 ```
 
+### Continuous Variable Distributions
 ```{r plotAge, include = TRUE, fig.cap = "Figure 1. Distribution of Participant Age, Age against SINCEHIV"}
 grid.arrange(plotAge, plotCorr)
 ```
@@ -499,6 +508,7 @@ grid.arrange(plotAge, plotCorr)
 grid.arrange(plotSINCEHIV, plotSINCEHIVlog)
 ```
 
+### Model Comparisons
 ```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 3. Autocorrelation and Convergence of Sigmas"}
 plotACF <- function (burn, n, parameter, name = parameter, 
                      model = NULL, lag.max = NULL) {
@@ -535,6 +545,7 @@ kable(tibble(Model = c("Model 1", "Model 2", "Model 3", "Model 4"),
 
 ```
 
+### Model 4 Plots
 ```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 4. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
 par(mfrow = c(2, 3))
 plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
@@ -551,6 +562,7 @@ plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"),
          table2$Parameter[8:13], "Model 2")
 ```
 
+### Model Diagnostics
 ```{r diagnosticsMod2, include = TRUE, fig.cap = "Figure 6. Model Diagnostics"}
 sumMod2 <- burnMod2$Burnin.sims.matrix %>%
   as.data.frame() %>%
@@ -624,6 +636,7 @@ grid.arrange(ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
 
 ```
 
+### Results
 ```{r results, include = TRUE}
 kable(sumMod4 %>%
         filter(str_detect(Parameter, "alpha|sigma")) %>%
@@ -634,6 +647,7 @@ kable(sumMod4 %>%
                 full_width = FALSE)
 ```
 
+### SINCEHIV Coefficient Distributions
 ```{r plotPosterior, include = TRUE, fig.cap = "Figure 7. SINCEHIV Distributions"}
 priorMeans <- table2$Mean[-3]
 priorX <- double(304800)
