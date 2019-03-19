@@ -1,5 +1,5 @@
 ---
-title: "Influence of Time Since HIV Diagnosis on Seeking Sexual Information Online"
+title: "Influence of Time Since HIV Diagnosis on Seeking Health Information Online"
 author: "Adam Northrup"
 date: "March 19, 2019"
 output: html_document
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(fig.align = "center",
 # install and load required packages
 if (!require("pacman")) 
   install.packages("pacman", repos='http://cran.us.r-project.org')
-p_load("tidyverse", "R2jags", "knitr", "kableExtra", "lattice")
+p_load("tidyverse", "R2jags", "knitr", "kableExtra", "lattice", "gridExtra")
 setwd("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Bayes_FinalDAP")
 theme_set(theme_bw())
 
@@ -34,7 +34,7 @@ The outcome, `HealthInfo` is a binary variable, indicating whether a participant
 
 Demographic information was taken from the baseline survey. Some participants were given only a 6-month survey and no baseline survey, thus they were not included in the data set.  
 
-Of the available covariates, only `SINCEHIV` (time since HIV diagnosis), and `Age` are continuous. Figures 1 and 2 show the distributions for `Age` and `SINCEHIV` broken down by whether participants sought health information. Figure 3 shows the distribution for the log of `SINCEHIV`.  
+Of the available covariates, only `SINCEHIV` (time since HIV diagnosis), and `Age` are continuous. Figure 1 shows the distribution for `Age` broken down by whether participants sought health information. Figure 2 shows the distribution for `SINCEHIV` and the log of `SINCEHIV`.  
 
 Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. 
 
@@ -222,11 +222,11 @@ plotAge <- ggplot(demoPlots, aes(x = Age, fill = factor(HealthInfo))) +
 plotSINCEHIV <- ggplot(demoPlots, aes(x = SINCEHIV, fill = factor(HealthInfo))) +
   geom_histogram(binwidth = 1, show.legend = FALSE) +
   facet_grid(~HealthInfo) +
-  labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Health Information Seeking")
+  labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Outcome")
 plotSINCEHIVlog <- ggplot(demoPlots, aes(x = log(SINCEHIV), fill = factor(HealthInfo))) +
   geom_histogram(binwidth = .33, show.legend = FALSE) +
   facet_grid(~HealthInfo) +
-  labs(y = "Count", title = "Distribution of log of Time Since HIV Diagnosis Stratified by Health Information Seeking")
+  labs(y = "Count", title = "Distribution of log of Time Since HIV Diagnosis Stratified by Outcome")
 
 plotCorr <- ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
   geom_point(position = position_jitter(), show.legend = FALSE) +
@@ -244,7 +244,7 @@ table2 <- tibble(Parameter = colnames(x),
 ```
 
 ### Models
-Four models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`, Figure 4), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The third model did not include `Age` or random effects. The third model would include `Age` if the first model is shown to outperform the second model without `Age`. The fourth model was similar to the second, except used the log of `SINCEHIV`. Models followed the general form:  
+Four models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`, Figure 1), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The third model did not include `Age` or random effects. The third model would include `Age` if the first model is shown to outperform the second model without `Age`. The fourth model was similar to the second, except used the log of `SINCEHIV`. Models followed the general form:  
 $$
 Y_i \sim Bernoulli(\pi_i) \\
 log \frac{\pi_i}{1 - \pi_i} = x_i^T\alpha + \beta_{j} 
@@ -261,9 +261,9 @@ Regression coefficients were expected to follow normal distributions, though the
 The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to initiating model 3. Sensitivity analysis included increasing iterations and thinning. Poor convergence may also necessitate changing precision levels for random effects. Once a model is selected, linearity will be assessed and any necessary transformations will be made. The effects of `SINCEHIV` will then be determined.  
 
 ## Results  
-Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were compared. Figure 5 shows autocorrelation and convergence of random effects $\sigma_b$ for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 6 and 7). Autocorrelation is lower for Model 3, though convergence is poor, by orders of magnitude. Autocorrelation is similar and slightly higher for Models 1, 2, and 3, but convergence is good. Models 1, 2, and 3 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3), so Model 4 appears to be the best-performing. Convergence for $\alpha$ in Figure 7 is good for all covariates.  
+Models 1 and 2 had high autocorrelation and high spikes in time series plots. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were compared. Figure 3 shows autocorrelation and convergence of random effects $\sigma_b$ for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 4 and 5). Autocorrelation is lower for Model 3, though convergence is poor, by orders of magnitude. Autocorrelation is similar and slightly higher for Models 1, 2, and 3, but convergence is good. Models 1, 2, and 3 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3), so Model 4 appears to be the best-performing. Convergence for $\alpha$ in Figure 5 is good for all covariates.  
 
-Model 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 8 shows `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoothers for each. The curves are similar, though they differ at specific values of `SINCEHIV`. It is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. The differences in the middle (near 11 years) may also be due to the upward tail of the LOESS curve on `HealthInfo` at high values. The differences in the two curves at values of `SINCEHIV` under 5 years lend possible evidence against the fit of the model. Generally the probability of seeking health information, $\pi$, is high for lower times since HIV diagnosis, and the same is true for number of participants seeking health information, y. However, $\pi$ is higher than y at 1 year according to the LOESS curve. The slight dip in both curves at 4 years also takes away from the linearity of the model for this covariate. Model 4 was created in order to account for these differences in LOESS curves. Figure 9 shows the same curves for Model 4, but with slightly closer tails on the low end of `SINCEHIV`. These differences should still be noted as a potential limitation of the model.  
+Model 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ with LOESS smoothers for each. The curves are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. The differences in the middle (near 11 years) may also be due to the upward tail of the LOESS curve on `HealthInfo` at high values. The differences in the two curves at values of `SINCEHIV` under 5 years lend possible evidence against the fit of the model. Generally the probability of seeking health information, $\pi$, is high for lower times since HIV diagnosis, and the same is true for number of participants seeking health information, y. However, $\pi$ is higher than y at 1 year according to the LOESS curve. The slight dip in both curves at 4 years also takes away from the linearity of the model for this covariate. Model 4 was created in order to account for these differences in LOESS curves. Model 4 has similar curves, but with slightly closer tails on the low end of `SINCEHIV`. These differences should still be noted as a potential limitation of the model.  
 
 The $\alpha$ coefficient for time since diagnosis (`SINCEHIV`) on whether a participant sought health information online is seen in Table 4 as -0.40. Table 4 also includes the coefficients for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution is also listed.  
 
@@ -491,23 +491,15 @@ kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
                 full_width = FALSE)
 ```
 
-```{r plotAge, include = TRUE, fig.cap = "Figure 1. Distribution of Participant Age"}
-plotAge
+```{r plotAge, include = TRUE, fig.cap = "Figure 1. Distribution of Participant Age, Age against SINCEHIV"}
+grid.arrange(plotAge, plotCorr)
 ```
 
-```{r plotSINCEHIV, include = TRUE, fig.cap = "Figure 2. Distribution of Time Since HIV Diagnosis (SINCEHIV)"}
-plotSINCEHIV
+```{r plotSINCEHIV, include = TRUE, fig.cap = "Figure 2. Distribution of SINCEHIV and log(SINCEHIV)"}
+grid.arrange(plotSINCEHIV, plotSINCEHIVlog)
 ```
 
-```{r plotSINCEHIVlog, include = TRUE, fig.cap = "Figure 3. Distribution of log(SINCEHIV)"}
-plotSINCEHIVlog
-```
-
-```{r plotCorr, include = TRUE, fig.cap = "Figure 4. Scatterplot of Age against SINCEHIV"}
-plotCorr
-```
-
-```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 5. Autocorrelation and Convergence of Sigmas"}
+```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 3. Autocorrelation and Convergence of Sigmas"}
 plotACF <- function (burn, n, parameter, name = parameter, 
                      model = NULL, lag.max = NULL) {
   for(i in 1:length(parameter)) {
@@ -543,7 +535,7 @@ kable(tibble(Model = c("Model 1", "Model 2", "Model 3", "Model 4"),
 
 ```
 
-```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 6. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
+```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 4. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
 par(mfrow = c(2, 3))
 plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
         table2$Parameter[c(1, 2, 4:7)], "Model 2")
@@ -551,7 +543,7 @@ plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"),
         table2$Parameter[8:13], "Model 2")
 ```
 
-```{r jagsPlotsAlpha2, include = TRUE, fig.cap = "Figure 7. Autocorrelation and Convergence of Model 2 Alphas 7-12"}
+```{r jagsPlotsAlpha2, include = TRUE, fig.cap = "Figure 5. Autocorrelation and Convergence of Model 2 Alphas 7-12"}
 par(mfrow = c(3, 2))
 plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
          table2$Parameter[c(1, 2, 4:7)], "Model 2")
@@ -559,7 +551,7 @@ plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"),
          table2$Parameter[8:13], "Model 2")
 ```
 
-```{r diagnosticsMod2, include = TRUE, fig.cap = "Figure 8. Model 2 Diagnostics"}
+```{r diagnosticsMod2, include = TRUE, fig.cap = "Figure 6. Model Diagnostics"}
 sumMod2 <- burnMod2$Burnin.sims.matrix %>%
   as.data.frame() %>%
   gather("Parameter", "Value") %>%
@@ -585,18 +577,7 @@ diagMod2 <- tibble(y = y,
                    a2 = alphaMod2[2],
                    color = "1") %>%
   mutate(xa = SINCEHIV * a2)
-ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
-  geom_point() +
-  geom_smooth(method = "loess", se = FALSE) +
-  geom_point(aes(y = y, color = "blue")) +
-  geom_smooth(aes(y = y, color = "blue"), method = "loess", se = FALSE) +
-  labs(y = "", title = "Pi and Y against Time Since HIV Diagnosis",
-       x = "Time Since HIV (yr)") +
-  scale_color_manual(name = 'Y Axis', 
-         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info'))
-```
 
-```{r diagnosticsMod4, include = TRUE, fig.cap = "Figure 9. Model 4 Diagnostics"}
 sumMod4 <- burnMod4$Burnin.sims.matrix %>%
   as.data.frame() %>%
   gather("Parameter", "Value") %>%
@@ -622,15 +603,25 @@ diagMod4 <- tibble(y = y,
                    a2 = alphaMod4[2],
                    color = "1") %>%
   mutate(xa = SINCEHIV * a2)
-ggplot(diagMod4, aes(x = SINCEHIV, y = pi, color = "black")) +
+grid.arrange(ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE) +
   geom_point(aes(y = y, color = "blue")) +
   geom_smooth(aes(y = y, color = "blue"), method = "loess", se = FALSE) +
-  labs(y = "", title = "Pi and Y against Time Since HIV Diagnosis",
+  labs(y = "", title = "Model 2: Pi and Y against Time Since HIV Diagnosis",
        x = "Time Since HIV (yr)") +
   scale_color_manual(name = 'Y Axis', 
-         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info'))
+         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info')),
+  ggplot(diagMod4, aes(x = SINCEHIV, y = pi, color = "black")) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point(aes(y = y, color = "blue")) +
+  geom_smooth(aes(y = y, color = "blue"), method = "loess", se = FALSE) +
+  labs(y = "", title = "Model 4: Pi and Y against Time Since HIV Diagnosis",
+       x = "Time Since HIV (yr)") +
+  scale_color_manual(name = 'Y Axis', 
+         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info')))
+
 ```
 
 ```{r results, include = TRUE}
@@ -643,7 +634,7 @@ kable(sumMod4 %>%
                 full_width = FALSE)
 ```
 
-```{r plotPosterior}
+```{r plotPosterior, include = TRUE, fig.cap = "Figure "}
 priorMeans <- table2$Mean[-3]
 priorX <- double(304800)
 likeliX <- double(304800)
