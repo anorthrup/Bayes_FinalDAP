@@ -1,0 +1,705 @@
+---
+title: "Influence of Time Since HIV Diagnosis on Seeking Health Information Online"
+author: "Adam Northrup"
+date: "March 19, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align = "center",
+                      echo = FALSE, include = FALSE, 
+                      warning = FALSE, message = FALSE)
+# install and load required packages
+if (!require("pacman")) 
+  install.packages("pacman", repos='http://cran.us.r-project.org')
+p_load("tidyverse", "R2jags", "knitr", "kableExtra", "lattice", "gridExtra")
+setwd("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Bayes_FinalDAP")
+theme_set(theme_bw())
+
+load("C:/Users/anthe/Google Drive/MS Biostats/Courses/06 2019 Winter/BS 234/Labs/AddBurnin.RData")
+load("model_all.RData")
+```
+<div style="line-height: 2em;">
+## Abstract  
+This analysis will determine whether time since HIV diagnosis plays a role in whether an HIV-positive youth seeks health information online. Data constitutes responses from surveys administered to patients at 10 clinical sites across the country. The effect of time since diagnosis will be evaluated when controlling for age, race, gender, sexual orientation, education, and employment status. The event of interest, `HealthInfo`, is a binary event, and can be characterized by the probability of the event ($\pi$). The effect of time will be estimated using logistic regression, and will take the form of an odds ratio, $e^{\alpha}$. $\alpha$ is a vector of regression coefficients. Regression coefficients are expected to follow different normal distributions, with expectations taken from prior research. Survey results from each site may be correlated, and so a site-specific effect will be considered.  
+
+## Introduction  
+Investigators are interested in health-information seeking behavior in order to better adapt interventions geared toward HIV positive youth. The purpose of the survey is ultimately to determine factors that encourage participants to take an active role in their health care. This analysis will determine if one such factor, time since HIV diagnosis, has an effect on health-seeking behavior.  
+
+## Methods  
+### Data  
+Data comes from the Health Resources and Services Administration's Special Projects of National Significance Initiative: Use of Social Media to Improve Engagement, Retention, and Health Outcomes along the HIV Care Continuum. Participant and site identifying information have been removed. Participants were HIV positive youth and young adults (ages 16-34), and data were self-reported by participants between 2016 and 2018. Sites are located in major cities, distributed across the United States. Participants at sites have different demographic makeup, and while these demographics will be controlled for, it is thought that there may be correlation for outcomes among participants within site. Data consist of a baseline survey taken upon entrance into the study, and a 6-month follow-up.  
+
+`HealthInfo` is a binary variable, indicating whether a participant has reported looking for health-related information online. There are multiple types of health information that participants may report searching for, including cold/flu symptoms, transgender therapies, and STD information. If participants responded affirmatively to any of these, `HealthInfo` is recorded as a 1, otherwise a 0. Since these questions are asked in the 6-month follow-up, participants that were lost to follow-up are not included in this analysis. Ideally, $\chi^2$ testing would be performed between those participants included and those lost to follow-up, but those lost to follow-up were not included in the data set.  
+
+Demographic information was taken from the baseline survey. Some participants were given only a 6-month survey and no baseline survey, thus they were not included in the data set.  
+
+Of the available covariates, only `SINCEHIV` (time since HIV diagnosis), and `Age` are continuous. Figure 1 shows the distribution for `Age` broken down by whether participants sought health information. Figure 2 shows the distribution for `SINCEHIV` and the log of `SINCEHIV`.  
+
+Variables for gender, sexual orientation, ethnicity, race, and education are coded as binary variables with numerous options that were pared down for the purposes of this analysis. Employment status was not already coded as binary, and so had to be treated differently, as detailed below. Demographic covariates were collapsed to reflect categories for which prior information was available. 
+
+Gender was reduced to male, female, and 'other' categories. Cis and trans men were collapsed together, and the same for women. A new variable, `LGBTQ` was created from gender and sexual orientation, indicating whether participant is LGBTQ or non-LGBTQ. 
+
+Participants who indicated Latino were marked as Latino, and the rest were broken into different race categories. Categories were created for black non-Latinos, white non-Latinos, and others.  
+
+Education was reduced to high school or high school equivalent or less, and more than a high school education.  
+
+The employment status question of the survey allowed participants to check all that apply, including: student, full-time or part-time employed, on disability, unemployed and looking for work, or unemployed and not looking. In order to code employment in dummy variables, these were collapsed into fewer categories and the different combinations were evaluated, with the most infrequent collapsed into an 'other' category. The remaining categories include student, employed, disabled, and unemployed. Student includes employed and unemployed students. Other combinations were rare.  
+
+Demographic information of participants is summarized in Table 1. There are 686 participants included in the analysis, of which 627 are LGBTQ, 498 are men, 167 women, 197 are Latino, 329 are black (not Latino), and 116 are white (not Latino). Approximately half had more than high school educations, 294 are employed, and 254 are unemployed. The number from each group who sought out health information online is also documented in Table 1. 
+
+```{r data, eval = FALSE}
+acasi3 <- acasi2 %>%
+  filter(!is.na(SCREEN1)) %>%
+  filter(BORNHIV == 0) %>%
+  arrange(SITE1) %>%
+  mutate(Site = as.numeric(as.factor(SITE1)),
+         ID = 1:n(),
+         HealthInfo = if_else(S56_24XL + S56_24XM + S56_24XN + S56_24XO > 0 &
+                                S56_24XL + S56_24XM + S56_24XN + S56_24XO < 8,
+                              1, 0)) %>%
+  select(Site, ID, BORNHIV, DIAGHIV, SCREEN1, ORIENT, GENDER, GRADE, 
+         LATINO, starts_with("RACE"), -RACE, -RACEFS,
+         contains("EMPLOY"), -EMPLOY, -EMPLOYE, -EMPLOYF, HealthInfo) %>%
+  mutate_at(vars(RACE_RC, ORIENT, GENDER, GRADE, starts_with("EMPLOY")),
+            funs(as.factor)) %>%
+  mutate(SINCEHIV = 2019 - DIAGHIV,
+         LGBTQ = if_else(ORIENT == 1 & GENDER %in% c(1, 2), 0, 1),
+         GENDER_RC = fct_recode(GENDER,
+                                 "Man"              = "1", 
+                                 "Woman"            = "2",
+                                 "Man"              = "3", 
+                                 "Woman"            = "4",
+                                 "Other gender"     = "5", 
+                                 "Other gender"     = "6",
+                                 "Refuse to answer" = "8"),
+         GRADE_RC = fct_recode(as.factor(GRADE),
+                               "High school, equivalent or less"  = "1", 
+                               "High school, equivalent or less"  = "2", 
+                               "High school, equivalent or less"  = "3", 
+                               "More than high school"            = "4", 
+                               "More than high school"            = "5", 
+                               "More than high school"            = "6",
+                               "More than high school"            = "7", 
+                               "Refuse to answer"                 = "8"),
+         RACE_RC = case_when(LATINO == 1 ~ "Latino",
+                             RACEC == 1 ~ "Black, Not Latino",
+                             RACEE == 1 ~ "White, Not Latino",
+                             TRUE ~ "Other race"),
+         EMPLOYB_RC = if_else(EMPLOYB == 1 | EMPLOYC == 1, 1, 0),
+         EMPLOYA = fct_recode(EMPLOYA, "A" = "1"),
+         EMPLOYB_RC = fct_recode(as.factor(EMPLOYB_RC), "B" = "1"),
+         EMPLOYD = fct_recode(EMPLOYD, "D" = "1"),
+         EMPLOYE_RC = fct_recode(EMPLOYE_RC, "E" = "1"),
+         EMPLOY = str_replace_all(
+           paste0(EMPLOYA, EMPLOYB_RC, EMPLOYD, EMPLOYE_RC),
+           "0", ""
+         ),
+         EMPLOY = fct_lump(as.factor(EMPLOY), n = 5),
+         EMPLOY = fct_recode(EMPLOY,
+                             "Student" = "A",
+                             "Student" = "AB",
+                             "Employed" = "B",
+                             "Disabled" = "D",
+                             "Unemployed" = "E")) %>%
+  select(Site, ID, HealthInfo, SINCEHIV, SCREEN1, LGBTQ, GENDER_RC, 
+         GRADE_RC, RACE_RC, EMPLOY) %>%
+  rename(Age = SCREEN1)
+
+y <- acasi3$HealthInfo
+x <- acasi3 %>%
+  mutate(Intercept = 1,
+         Gender_Woman = if_else(GENDER_RC == "Woman", 1, 0),
+         Gender_Other = if_else(GENDER_RC == "Other gender", 1, 0),
+         Ed_Higher = if_else(GRADE_RC == "More than high school", 1, 0),
+         Race_Black = if_else(RACE_RC == "Black, Not Latino", 1, 0),
+         Race_White = if_else(RACE_RC == "White, Not Latino", 1, 0),
+         Race_Other = if_else(RACE_RC == "Other race", 1, 0),
+         Employ_Student = if_else(EMPLOY == "Student", 1, 0),
+         Employ_Employed = if_else(EMPLOY == "Employed", 1, 0),
+         Employ_Disabled = if_else(EMPLOY == "Disabled", 1, 0),
+         Employ_Other = if_else(EMPLOY == "Other", 1, 0)) %>%
+  select(Intercept, SINCEHIV, Age, starts_with("Gender_"), Ed_Higher, 
+         starts_with("Race_"), starts_with("Employ_"),
+         -GENDER_RC, -RACE_RC) %>%
+  as.matrix()
+```
+
+```{r summary}
+#####Create summary tables
+#Functions
+tab1_OneFactor <- function (x, varString, varRelevel = NULL) {
+  varQuo <- enquo(varString)
+  x %>%
+    select(HealthInfo, !!varQuo) %>%
+    group_by(!!varQuo) %>%
+    summarize(N = n(),
+              P = n() / nrow(.),
+              N.y = sum(HealthInfo),
+              P.y = sum(HealthInfo) / length(HealthInfo)) %>%
+    arrange(desc(N)) %>%
+    mutate(`Sample Frequency` = paste0(N, 
+                                       " (", 
+                                       scales::percent(P, accuracy = 0.1),
+                                       ")"),
+           `Seeking Health Info` = paste0(N.y, 
+                                       " (", 
+                                       scales::percent(P.y, accuracy = 0.1),
+                                       ")")) %>%
+    rename(Variable = !!varQuo) %>%
+    select(-N, - P, -N.y, -P.y) %>%
+    mutate(Variable = fct_relevel(factor(Variable, levels = unique(Variable)), 
+                                  varRelevel)) %>%
+    arrange(Variable) %>%
+    mutate(Variable = as.character(Variable))
+}
+
+tab1_ManyBinary <- function (x, ..., response = 1) {
+  selectVars <- quos(...)
+  x %>%
+    select(HealthInfo, !!!selectVars) %>%
+    gather("Variable", "Value", -HealthInfo) %>%
+    group_by(Variable) %>%
+    summarize(N = sum(Value),
+              P = sum(Value) / n(),
+              N.y = sum(HealthInfo[which(Value == 1)]),
+              P.y = sum(HealthInfo[which(Value == 1)]) / 
+                length(HealthInfo[which(Value == 1)])) %>%
+    arrange(desc(N)) %>%
+    mutate(`Sample Frequency` = paste0(N, 
+                                       " (", 
+                                       scales::percent(P, accuracy = 0.1),
+                                       ")"),
+           `Seeking Health Info` = paste0(N.y, 
+                                       " (", 
+                                       scales::percent(P.y, accuracy = 0.1),
+                                       ")")) %>%
+    select(-N, - P, -N.y, -P.y)
+}
+
+#Create summary table
+demo <- acasi3 %>%
+  mutate(LGBTQ = fct_recode(as.factor(LGBTQ),
+                            "Non-LGBTQ" = "0", 
+                            "LGBTQ" = "1"))
+
+table1 <- bind_rows(
+  demo %>%
+      summarize(Variable = "Number of participants",
+                `Sample Frequency` = as.character(n())),
+  bind_rows(
+    demo %>%
+      summarize(Variable = "Age",
+                Mean = mean(Age),
+                SD = sd(Age)),
+    demo %>%
+      summarize(Variable = "Time since HIV diagnosis",
+                Mean = mean(SINCEHIV),
+                SD = sd(SINCEHIV))
+  ) %>%
+    mutate_if(is.numeric, funs(round), 1) %>%
+    unite("Sample Frequency", Mean, SD, sep = " (") %>%
+    mutate(`Sample Frequency` = paste0(`Sample Frequency`, ")")),
+  tab1_OneFactor(demo, varString = LGBTQ),
+  tab1_OneFactor(demo, varString = GENDER_RC),
+  tab1_OneFactor(demo, varString = RACE_RC) %>%
+    mutate(Variable = fct_relevel(factor(Variable, levels = unique(Variable)),
+                                  "Latino")) %>%
+    arrange(Variable) %>%
+    mutate(Variable = as.character(Variable)),
+  tab1_OneFactor(demo, varString = GRADE_RC),
+  tab1_OneFactor(demo, varString = EMPLOY)
+)
+
+demoPlots <- demo %>%
+  mutate(HealthInfo = fct_recode(as.factor(HealthInfo),
+                                 "Seeks Info" = "1",
+                                 "Does Not Seek Info" = "0"))
+plotAge <- ggplot(demoPlots, aes(x = Age, fill = factor(HealthInfo))) +
+  geom_histogram(binwidth = 1, show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Count", title = "Distribution of Age Stratified by Health Information Seeking")
+plotSINCEHIV <- ggplot(demoPlots, aes(x = SINCEHIV, fill = factor(HealthInfo))) +
+  geom_histogram(binwidth = 1, show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Count", title = "Distribution of Time Since HIV Diagnosis Stratified by Outcome")
+plotSINCEHIVlog <- ggplot(demoPlots, aes(x = log(SINCEHIV), fill = factor(HealthInfo))) +
+  geom_histogram(binwidth = .33, show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Count", title = "Distribution of log of Time Since HIV Diagnosis Stratified by Outcome")
+
+plotCorr <- ggplot(demoPlots, aes(x = Age, y = SINCEHIV, color = HealthInfo)) +
+  geom_point(position = position_jitter(), show.legend = FALSE) +
+  facet_grid(~HealthInfo) +
+  labs(y = "Time Since HIV Diagnosis (yr)", x = "Age (yr)",
+       title = "Age Against Time Since Diagnosis, Separated by Outcome")
+
+corAgeSinceHIV <- cor(x[, 2:3])[1, 2]
+table2 <- tibble(Parameter = colnames(x), 
+                 alpha = paste0("alpha[", 1:13, "]"),
+                 Mean = c("0", "-1", "1", "1", "1", "1", 
+                          "0", "0", "0", "1", "1", "1", "0"),
+                 SD = rep(1, 13))
+
+```
+
+### Models
+Four models were evaluated and compared to determine the effect of `SINCEHIV`. The first model included `Age`, but since `Age` was found to be correlated with `SINCEHIV`, ($\rho$ = `r round(corAgeSinceHIV, 2)`, Figure 1), a second model without `Age` was considered. Both of these models included `Site` as a random effect, as participant outcomes were anticipated to be correlated within site. The third model did not include random effects, and would include `Age` if the first model is shown to outperform the second model without `Age`. The fourth model excluddes `Age`, and includes random effects, but used the log of `SINCEHIV`. Models followed the general form:  
+$$
+Y_i \sim Bernoulli(\pi_i) \\
+log \frac{\pi_i}{1 - \pi_i} = x_i^T\alpha + \beta_{j} 
+$$
+with the following distributions:  
+$$
+\beta_j \sim Norm_o(0, \tau_b) \\
+\tau_b \sim Gamma(0.25, 0.25) \\
+\alpha_k \sim Norm(\mu_k, 1)
+$$
+
+Regression coefficients were expected to follow normal distributions, though these distributions are unknown. They were estimated to be negative, zero, or positive, with means of -1, 0, or 1, respectively, with standard deviation of 1. This allows each distribution to include zero. Prior information was taken from Rideout and Fox, 2018, which assessed the effects of age, gender, LGBTQ status, and race on health-seeking behavior of teens and young adults. Effects of education and employment status were not detailed, priors for these were based on intuition instead. See Table 2 for prior normal distribution parameters. `SINCEHIV` was expected to have a negative effect, since newly diagnosed participants were thought likely to attempt to learn about their diagnosis. Rideout and Fox reported higher likelihood of seeking health information with increased age, and for women and LGBTQ over men and non-LGBTQ. Race was reported as having no effect. It was estimated that participants with higher education and employment would have increased likelihood of seeking health information.  
+
+The model that best converged and had the lowest DIC was selected. Initial iterations were set to 1100 with 100 burnin and thinning of 1. Convergence was assessed and sensitivity analysis performed for Models 1 and 2 prior to evaluation of later models. Sensitivity analysis included increasing iterations and thinning. Poor convergence may have also necessitated changing precision levels for random effects. Once a model was selected, linearity was assessed and any necessary transformations made (e.g. log of `SINCEHIV`). The effects of `SINCEHIV` were then determined.  
+
+## Results  
+Models 1 and 2 had high autocorrelation and high spikes in time series plots with 1100 iterations. Iterations were increased to 5100 with thinning of 5, and then again to 8100 with thinning of 8. Burnin was never increased because models appeared to converge quickly. The models with 8100 iterations were not noticeably different from those with 5100, and so the models with 5100 were selected and compared. Figure 3 shows autocorrelation and convergence of random effects standard deviation, $\sigma_b$, for all four models. Autocorrelation and convergence for $\alpha$ coefficients were also compared, but only those for Model 4 are shown (Figures 4 and 5). Autocorrelation is higher for Models 1, 2, and 4 than for Model 3, but convergence for Model 3 worse than the others by orders of magnitude. Models 1, 2, and 4 are indistinguishable graphically, but model 4 has the lowest DIC (Table 3). Models 2 and 4 were compared for model fit as described below. Convergence is good for all $\alpha$, as shown in Figure 5.  
+
+Models 2 and model 4 were assessed for linearity in the continuous variable, `SINCEHIV`. Figure 6 shows Model 2 (top) and Model 4 (bottom) `SINCEHIV` plotted against $\pi_i$ and $y_i$ (`HealthInfo`) with LOESS smoothers for each. The curves for $\pi_i$ and $y_i$ are similar, though they differ at specific values of `SINCEHIV`. For Model 2, it is possible that due to the low number of observations at the high end of the curve, the differences are due to noise. This upward tail may influence the difference in the middle (near 11 years) as well. The difference in tails at the lower end of `SINCEHIV` may be evidence of an imperfect fit. Model 4 was created in order to account for these differences in LOESS curves. The curves for Model 4 have shapes similar to those scene in Model 2, but with slightly closer tails on the low end of `SINCEHIV`, thus Model 4 has a better if still imperfect fit.  
+
+The regression coefficient ($\alpha_2$) for time since diagnosis (`SINCEHIV`) on whether a participant sought health information online is seen in Table 4 as -0.40. Table 4 also includes the coefficients for other covariates, but the effects of these covariates were not of interest in the research question. The estimate for the SD for the random effect distribution, $\tau_b$, is also listed.  
+
+## Conclusions  
+Table 4 shows that the 2.5th percentile and 97.5th percentile for $\alpha_2$ are both below zero, indicating that there is indeed an effect on health-seeking behavior. This is reinforced by the fact that all estimates of $\alpha_2$ are below zero, and thus the probability of the $\alpha_2$ being below zero is approximately 1.00. This indicates that for each increase in year since HIV diagnosis, the odds of seeking health information online is reduced by `r round(1 - exp(-.40), 2)`. Figure 7 shows the prior, likelihood, and posterior distributions, together and separated due to the extreme differences in scale.  
+
+## References
+Rideout, Victoria, and Susannah Fox. "Digital Health Practices, Social Media Use, and Mental Well-Being Among Teens and Young Adults in the U.S." *Digital Health Practices, Social Media Use, and Mental Well-Being Among Teens and Young Adults in the U.S.*, Well Being Trust, wellbeingtrust.org/areas-of-focus/policy-and-advocacy/reports/digital-health-practices/.
+
+## Appendix
+### Model Printouts
+#### Model 1  
+This model includes 13 covariates including `Age`, with regression coefficients (alpha), and random effects (beta).  
+```{r model1, echo = TRUE, include = TRUE}
+cat(
+"model{
+  for (i in 1:N.obs) {
+		y[i] ~ dbern(pie[i])
+    logit(pie[i]) <- inprod(x[i, ], alpha[]) + beta[site[i]]
+  }
+  for (j in 1:N.sites) {
+    beta[j] ~ dnorm(0, tau)
+  }
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
+  alpha[13] ~ dnorm(mu[13], tau.a)
+  tau ~ dgamma(b1, b2)
+  sigma <- 1/ tau
+}",
+  fill = TRUE,
+	file = "model1_logit_mixed.txt")
+```
+
+#### Model 2  
+This model does not include `Age`, indicated by 12 regression coefficients (alpha). This model includes random effects for `Site` (beta).  
+```{r model2, echo = TRUE, include = TRUE}
+cat(
+"model{
+  for (i in 1:N.obs) {
+		y[i] ~ dbern(pie[i])
+    logit(pie[i]) <- inprod(x[i, ], alpha[]) + beta[site[i]]
+  }
+  for (j in 1:N.sites) {
+    beta[j] ~ dnorm(0, tau)
+  }
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
+  tau ~ dgamma(b1, b2)
+  sigma <- 1/ tau
+}",
+  fill = TRUE,
+	file = "model2_logit_mixed.txt")
+```
+
+#### Model 3  
+This model does not include `Age` (see only 12 alphas) or random effects.  
+```{r model3, echo = TRUE, include = TRUE}
+cat(
+"model{
+  for (i in 1:N.obs) {
+		y[i] ~ dbern(pie[i])
+    logit(pie[i]) <- inprod(x[i, ], alpha[])
+  }
+  alpha[1] ~ dnorm(mu[1], tau.a)
+  alpha[2] ~ dnorm(mu[2], tau.a)
+  alpha[3] ~ dnorm(mu[3], tau.a)
+  alpha[4] ~ dnorm(mu[4], tau.a)
+  alpha[5] ~ dnorm(mu[5], tau.a)
+  alpha[6] ~ dnorm(mu[6], tau.a)
+  alpha[7] ~ dnorm(mu[7], tau.a)
+  alpha[8] ~ dnorm(mu[8], tau.a)
+  alpha[9] ~ dnorm(mu[9], tau.a)
+  alpha[10] ~ dnorm(mu[10], tau.a)
+  alpha[11] ~ dnorm(mu[11], tau.a)
+  alpha[12] ~ dnorm(mu[12], tau.a)
+  tau ~ dgamma(b1, b2)
+  sigma <- 1/ tau
+}",
+  fill = TRUE,
+	file = "model3_logit_fixed.txt")
+```
+
+```{r runMod1, eval = FALSE}
+parameters <- c("pie", "alpha", "beta", "sigma")
+
+initsMod1 <- rep(
+  list(
+    list(
+      alpha = rep(0, 13),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod1 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     mu = table2$Mean,
+                     tau.a = 1,
+                     y = y, 
+                     x = x)
+proc.time()
+runMod1 = jags(priorDataMod1, initsMod1, parameters, 
+               "model1_logit_mixed.txt", 
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod1 <- AddBurnin(runMod1$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 5)
+dicMod1 <- runMod1$BUGSoutput$DIC
+```
+
+```{r runMod2, eval = FALSE}
+initsMod2 <- rep(
+  list(
+    list(
+      alpha = rep(0, 12),  
+      beta  = rep(0, length(unique(acasi3$Site))),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod2 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     mu = table2$Mean[-3],
+                     tau.a = 1,
+                     y = y, 
+                     x = x[, -3])
+proc.time()
+runMod2 = jags(priorDataMod2, initsMod2, parameters, 
+               "model2_logit_mixed.txt", 
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod2 <- AddBurnin(runMod2$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 5)
+dicMod2 <- runMod2$BUGSoutput$DIC
+```
+
+```{r runMod3, eval = FALSE}
+initsMod3 <- rep(
+  list(
+    list(
+      alpha = rep(0, 12),  
+      tau   = 1)
+  ),
+  5
+)
+
+priorDataMod3 = list(N.obs = nrow(acasi3), 
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     mu = table2$Mean[-3],
+                     tau.a = 1,
+                     y = y, 
+                     x = x[, -3])
+proc.time()
+runMod3 = jags(priorDataMod3, initsMod3, parameters, 
+               "model3_logit_fixed.txt", 
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod3 <- AddBurnin(runMod3$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 5)
+dicMod3 <- runMod3$BUGSoutput$DIC
+```
+
+```{r runMod4, eval = FALSE}
+x4 <- x[ , -3]
+x4[, 2] <- log(x4[, 2])
+priorDataMod4 = list(N.obs = nrow(acasi3), 
+                     N.sites = length(unique(acasi3$Site)),
+                     site = acasi3$Site,
+                     b1 = 0.25, 
+                     b2 = 0.25,
+                     mu = table2$Mean[-3],
+                     tau.a = 1,
+                     y = y, 
+                     x = x4)
+proc.time()
+runMod4 = jags(priorDataMod4, initsMod2, parameters, 
+               "model2_logit_mixed.txt", 
+               n.chains = 5, n.iter = 5100, n.burnin = 0, n.thin = 1)
+proc.time()
+burnMod4 <- AddBurnin(runMod4$BUGSoutput$sims.array, 
+                      burnin = 100, n.thin = 5)
+dicMod4 <- runMod4.1$BUGSoutput$DIC
+
+```
+
+</div>
+### Sample Summary
+```{r summaryTable, include = TRUE}
+kable(table1, caption = "Table 1. Participant Characteristics") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE) %>%
+  group_rows("Continuous Variables, Mean (SD)", 2, 3) %>%
+  group_rows("LGBTQ Status, Number (%) of Participants", 4, 5) %>%
+  group_rows("Gender, Number (%) of Participants", 6, 8) %>%
+  group_rows("Ethnicity and Race, Number (%) of Participants", 9, 12) %>%
+  group_rows("Education, Number (%) of Participants", 13, 14) %>%
+  group_rows("Employment Status, Number (%) of Participants", 15, 19)
+```
+
+### Prior Distributions
+```{r priorTable, include = TRUE}
+kable(table2, caption = "Table 2. Prior Normal Parameters") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+```
+
+### Continuous Variable Distributions
+```{r plotAge, include = TRUE, fig.cap = "Figure 1. Distribution of Participant Age, Age against SINCEHIV"}
+grid.arrange(plotAge, plotCorr)
+```
+
+```{r plotSINCEHIV, include = TRUE, fig.cap = "Figure 2. Distribution of SINCEHIV and log(SINCEHIV)"}
+grid.arrange(plotSINCEHIV, plotSINCEHIVlog)
+```
+
+### Model Comparisons
+```{r jagsPlotsSigma, include = TRUE, fig.cap = "Figure 3. Autocorrelation and Convergence of Sigmas"}
+plotACF <- function (burn, n, parameter, name = parameter, 
+                     model = NULL, lag.max = NULL) {
+  for(i in 1:length(parameter)) {
+    acf(burn$Burnin.sims.matrix[1:n, parameter[1]], lag.max = lag.max, 
+        main = paste(model, name[i]))
+  }
+}
+plotTime <- function (burn, n, parameter, name = parameter, model = NULL, ylim = NULL) {
+  for(i in 1:length(parameter)) {
+    plot(1:n, burn$Burnin.sims.matrix[1:n, parameter[1]], type = "l", 
+         main = paste(model, name[i]), ylab = parameter[i], xlab = "Iteration",
+         ylim = ylim)
+  }
+}
+par(mfrow = c(2, 4))
+plotACF(burnMod1, n = 1000, parameter = "sigma", model = "Model 1")
+plotACF(burnMod2, n = 1000, parameter = "sigma", model = "Model 2")
+plotACF(burnMod3, n = 1000, parameter = "sigma", model = "Model 3")
+plotACF(burnMod4, n = 1000, parameter = "sigma", model = "Model 4")
+plotTime(burnMod1, n = 1000, parameter = "sigma", model = "Model 1", ylim = c(0, 3))
+plotTime(burnMod2, n = 1000, parameter = "sigma", model = "Model 2", ylim = c(0, 3))
+plotTime(burnMod3, n = 1000, parameter = "sigma", model = "Model 3", ylim = c(0, 3))
+plotTime(burnMod4, n = 1000, parameter = "sigma", model = "Model 4", ylim = c(0, 3))
+```
+
+```{r dicTable, include = TRUE}
+kable(tibble(Model = c("Model 1", "Model 2", "Model 3", "Model 4"),
+             DIC = c(dicMod1, dicMod2, dicMod3, dicMod4)), 
+      digits = 1,
+      caption = "Table 3. Model DIC") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+
+```
+
+### Model 4 Plots
+```{r jagsPlotsAlpha1, include = TRUE, fig.cap = "Figure 4. Autocorrelation and Convergence of Model 2 Alphas 1-6"}
+par(mfrow = c(2, 3))
+plotACF(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
+        table2$Parameter[c(1, 2, 4:7)], "Model 2")
+plotACF(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), 
+        table2$Parameter[8:13], "Model 2")
+```
+
+```{r jagsPlotsAlpha2, include = TRUE, fig.cap = "Figure 5. Autocorrelation and Convergence of Model 2 Alphas 7-12"}
+par(mfrow = c(3, 2))
+plotTime(burnMod2, n = 1000, paste0("alpha[", 1:6, "]"), 
+         table2$Parameter[c(1, 2, 4:7)], "Model 2")
+plotTime(burnMod2, n = 1000, paste0("alpha[", 7:12, "]"), 
+         table2$Parameter[8:13], "Model 2")
+```
+
+### Model Diagnostics
+```{r diagnosticsMod2, include = TRUE, fig.cap = "Figure 6. Model Diagnostics"}
+sumMod2 <- burnMod2$Burnin.sims.matrix %>%
+  as.data.frame() %>%
+  gather("Parameter", "Value") %>%
+  group_by(Parameter) %>%
+  summarize(Mean = mean(Value),
+            SD = sd(Value),
+            `2.5%` = quantile(Value, 0.025),
+            `97.5%` = quantile(Value, 0.975),
+            `P>0` = length(which(Value > 0)) / length(Value),
+            `P<0` = length(which(Value < 0)) / length(Value)) %>%
+  mutate(Name = str_replace(Parameter, "(.*)(\\[.*)", "\\1"),
+         Number = as.numeric(str_replace(Parameter, 
+                                         "(.*\\[)(\\d+)(\\])", "\\2"))) %>%
+  arrange(Name, Number) %>%
+  select(-Name, -Number)
+alphaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "alpha")]
+betaMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "beta")]
+piMod2 <- sumMod2$Mean[str_detect(sumMod2$Parameter, "pie")]
+diagMod2 <- tibble(y = y,
+                   pi = piMod2, 
+                   logitPi = log(pi / (1 - pi)),
+                   SINCEHIV = x[, 2],
+                   a2 = alphaMod2[2],
+                   color = "1") %>%
+  mutate(xa = SINCEHIV * a2)
+
+sumMod4 <- burnMod4$Burnin.sims.matrix %>%
+  as.data.frame() %>%
+  gather("Parameter", "Value") %>%
+  group_by(Parameter) %>%
+  summarize(Mean = mean(Value),
+            SD = sd(Value),
+            `2.5%` = quantile(Value, 0.025),
+            `97.5%` = quantile(Value, 0.975),
+            `P>0` = length(which(Value > 0)) / length(Value),
+            `P<0` = length(which(Value < 0)) / length(Value)) %>%
+  mutate(Name = str_replace(Parameter, "(.*)(\\[.*)", "\\1"),
+         Number = as.numeric(str_replace(Parameter, 
+                                         "(.*\\[)(\\d+)(\\])", "\\2"))) %>%
+  arrange(Name, Number) %>%
+  select(-Name, -Number)
+alphaMod4 <- sumMod4$Mean[str_detect(sumMod4$Parameter, "alpha")]
+betaMod4 <- sumMod4$Mean[str_detect(sumMod4$Parameter, "beta")]
+piMod4 <- sumMod4$Mean[str_detect(sumMod4$Parameter, "pie")]
+diagMod4 <- tibble(y = y,
+                   pi = piMod4, 
+                   logitPi = log(pi / (1 - pi)),
+                   SINCEHIV = x[, 2],
+                   a2 = alphaMod4[2],
+                   color = "1") %>%
+  mutate(xa = SINCEHIV * a2)
+grid.arrange(ggplot(diagMod2, aes(x = SINCEHIV, y = pi, color = "black")) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point(aes(y = y, color = "blue")) +
+  geom_smooth(aes(y = y, color = "blue"), method = "loess", se = FALSE) +
+  labs(y = "", title = "Model 2: Pi and Y against Time Since HIV Diagnosis",
+       x = "Time Since HIV (yr)") +
+  scale_color_manual(name = 'Y Axis', 
+         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info')),
+  ggplot(diagMod4, aes(x = SINCEHIV, y = pi, color = "black")) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_point(aes(y = y, color = "blue")) +
+  geom_smooth(aes(y = y, color = "blue"), method = "loess", se = FALSE) +
+  labs(y = "", title = "Model 4: Pi and Y against Time Since HIV Diagnosis",
+       x = "Time Since HIV (yr)") +
+  scale_color_manual(name = 'Y Axis', 
+         values =c('black'='black','blue'='blue'), labels = c('Pi','Health Info')))
+
+```
+
+### Results
+```{r results, include = TRUE}
+kable(sumMod4 %>%
+        filter(str_detect(Parameter, "alpha|sigma")) %>%
+        mutate(Covariate = c(table2$Parameter[-3], "Site")) %>%
+        select(Covariate, everything()),
+      digits = 2, caption = "Table 4. Model Estimates") %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"),
+                full_width = FALSE)
+```
+
+### SINCEHIV Coefficient Distributions
+```{r plotPosterior, include = TRUE, fig.cap = "Figure 7. SINCEHIV Distributions"}
+priorMeans <- table2$Mean[-3]
+priorX <- double(304800)
+likeliX <- double(304800)
+likeliMod <- lm(HealthInfo ~ SINCEHIV + Gender_Woman + Gender_Other +
+                  Ed_Higher + Race_Black + Race_White + Race_Other +
+                  Employ_Student + Employ_Employed + Employ_Disabled + 
+                  Employ_Other, 
+                 data = bind_cols(
+                   tibble(HealthInfo = y), 
+                   as.tibble(x[, c(-1 ,-3)])))
+likeliMeans <- likeliMod$coefficients
+likeliSDs <- summary(likeliMod)$coefficients[, "Std. Error"]
+for (i in 1:length(priorMeans)) {
+  priorX[(25400*i - 25399):(25400*i)] <- 
+    rnorm(25400, as.numeric(priorMeans[i]), 1)
+  likeliX[(25400*i - 25399):(25400*i)] <- rnorm(25400, 
+                                                likeliMeans[i],
+                                                likeliSDs[i])
+}
+alphaNames <- paste0("alpha[", 1:12, "]") %>%
+  setNames(colnames(x[, -3]))
+postMod4 <- burnMod4$Burnin.sims.matrix %>%
+  as.data.frame() %>%
+  select(contains("alpha")) %>%
+  gather("Key", "Posterior") %>%
+  mutate(Key = fct_recode(factor(Key, levels = unique(Key)),
+                                 !!!alphaNames),
+         Prior = priorX,
+         Likelihood = likeliX)
+ggplot(postMod4 %>%
+         filter(Key == "SINCEHIV"),
+       aes(x = Posterior, fill = "posterior")) +
+  geom_density() +
+  geom_density(aes(x = Prior, fill = "prior")) +
+  geom_density(aes(x = Likelihood, fill = "likeli")) +
+  scale_x_continuous(limits = c(-2, 0.1)) +
+  # scale_y_continuous(limits = c(0, 20)) +
+  scale_fill_manual(name = "Distribution",
+                     values = c("likeli" = "red",
+                                "posterior" = "green", 
+                                "prior" = "blue"),                     
+                     labels = c("Likelihood", "Posterior", "Prior")) +
+  labs(y = "Density", x = "Time Since HIV Coefficient",
+       title = "Time Since HIV Distributions, Together")
+ggplot(postMod4 %>%
+         filter(Key == "SINCEHIV") %>%
+         gather("Distribution", "Data", -Key),
+       aes(x = Data, fill = Distribution)) +
+  facet_grid(.~Distribution, scales = "free") +
+  geom_density() +
+  labs(y = "Density", x = "Time Since HIV Coefficient",
+       title = "Time Since HIV Distributions, Separated")
+```
+
